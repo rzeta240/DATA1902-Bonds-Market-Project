@@ -32,7 +32,7 @@ ax.set_xlim([0,360])
 ax.set_ylim([0, 10])
 
 date_slider_ax = fig.add_axes([0.15, 0.05, 0.65, 0.03], facecolor="grey")
-date_slider = Slider(date_slider_ax, "Date", 4015, 4380, valinit = 1)
+date_slider = Slider(date_slider_ax, "Date", 1, 4380, valinit = 1)
 
 def on_slider_changed(val):
     d = datetime(2013,1,1,0,0) + timedelta(days=round(val - 1))

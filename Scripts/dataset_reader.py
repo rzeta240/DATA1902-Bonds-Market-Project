@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import os
-import math
 
 datasets_path = os.path.join(os.getcwd(), "Datasets")
 
