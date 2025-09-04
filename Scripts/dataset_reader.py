@@ -56,23 +56,9 @@ def get_yield_curve_rates():
     print(" | ".join([f"{df.columns[i]:^6}" for i in range( len( percent_data_present ) )]))
     print(" | ".join([f"{percent_data_present[i]:^6}" for i in range( len( percent_data_present ) )]))
 
+    df.sort_values("Date")
+
     return df
 
 if __name__ == "__main__":
     get_yield_curve_rates()
-
-# # Load the raw CSV and treat the "Date" column as dates not strings
-# df = pd.read_csv("yield-curve-rates-daily.csv", parse_dates=["Date"])
-
-# # Filter to 2013 onwards data and sort by date
-# df = df[df["Date"] >= "2013-01-01"].sort_values("Date")
-
-# # Reformat Date column to DD-MM-YYYY
-# df["Date"] = df["Date"].dt.strftime("%d-%m-%Y")
-
-# # Save cleaned data
-# df.to_csv("yield-curve-rates-2013-2024.csv", index=False)
-
-# # Print first & last 5 rows to confirm
-# print(df.head())
-# print(df.tail())
