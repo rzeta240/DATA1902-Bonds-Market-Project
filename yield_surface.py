@@ -26,7 +26,11 @@ def date(y, m, d):
 
 fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
 
-dates = yield_curve_rates[yield_curve_rates["Date"] >= date(2013, 1, 1)]["Date"]
+end = 2020
+
+dates = yield_curve_rates[yield_curve_rates["Date"] <= date(2025, 1, 1)]
+dates = dates[dates["Date"] >= date(2020, 1, 1)]["Date"]
+dates.index = range( len( dates ) )
 for i in range( len( dates ) ):
     dates[i] = dates[i].toordinal() - date(2013, 1, 1).toordinal()
 
@@ -58,9 +62,6 @@ print(y)
 
 surf = ax.plot_surface(t, m, y, cmap=cm.coolwarm,
                        linewidth=0, antialiased=False)
-
-# Customize the z axis.
-# ax.set_zlim(0, 0.5)
 
 # Add a color bar which maps values to colors.
 
