@@ -45,7 +45,7 @@ def percent_present(data_name, df):
     print(" | ".join([f"{percent_data_present[i].center(data_name_lens[i])}" for i in range( len( percent_data_present ) )]))
 
 
-def get_yield_curve_rates(silent = False):
+def get_yield_curve_rates(loadmsg = False):
     df = pd.read_csv(os.path.join(datasets_path, "yield_curve_rates_daily.csv"))
 
     for i in range( len( df["Date"] ) ):
@@ -58,14 +58,17 @@ def get_yield_curve_rates(silent = False):
     df = df[df["Date"] >= d_0]
     df = df[df["Date"] <= d_f]
     
-    if not silent:
+    df.pop("2 Mo")
+    df.pop("4 Mo")
+
+    if loadmsg:
         percent_present("Yield Curve", df)
 
     df.sort_values("Date")
 
     return df
 
-def get_unemployment_rates(silent = False):
+def get_unemployment_rates(loadmsg = False):
     df = pd.read_csv(os.path.join(datasets_path, "unemployment_rate_monthly.csv"))
 
     for i in range( len( df["Date"] ) ):
@@ -78,14 +81,14 @@ def get_unemployment_rates(silent = False):
     df = df[df["Date"] >= d_0]
     df = df[df["Date"] <= d_f]
 
-    if not silent:
+    if loadmsg:
         percent_present("Unemployment", df)
 
     df.sort_values("Date")
 
     return df
 
-def get_cpi(silent = False):
+def get_cpi(loadmsg = False):
     df = pd.read_csv(os.path.join(datasets_path, "consumer_price_index_quarterly.csv"))
 
     for i in range( len( df["Date"] ) ):
@@ -98,14 +101,14 @@ def get_cpi(silent = False):
     df = df[df["Date"] >= d_0]
     df = df[df["Date"] <= d_f]
 
-    if not silent:
+    if loadmsg:
         percent_present("CPI (Inflation)", df)
 
     df.sort_values("Date")
 
     return df
 
-def get_house_prices(silent = False):
+def get_house_prices(loadmsg = False):
     df = pd.read_csv(os.path.join(datasets_path, "average_house_price_quarterly.csv"))
 
     for i in range( len( df["Date"] ) ):
@@ -118,10 +121,72 @@ def get_house_prices(silent = False):
     df = df[df["Date"] >= d_0]
     df = df[df["Date"] <= d_f]
 
-    if not silent:
+    if loadmsg:
         percent_present("House Price", df)
 
     df.sort_values("Date")
+
+    return df
+
+def get_labor_productivity(loadmsg = False):
+    df = pd.read_csv(os.path.join(datasets_path, "labor_productivity_quarterly.csv"))
+
+    df = df[df["Units"] == "% Change from previous quarter"]
+
+    df.pop("Basis")
+    df.pop("Units")
+
+    sector = list(df["Sector"])
+    measure = list(df["Measure"])
+
+    sector_and_measure = []
+
+    for i in range( len( sector ) ):
+        sector_and_measure.append(f"{sector[i]} {measure[i]}")
+    
+    values = df.loc[:, "1947 Q1":]
+    values.columns = range(len(values.columns))
+
+    values = values.transpose()
+    values.columns = sector_and_measure
+
+    quarters = df.columns[2:]
+
+    dates = {"Date": []}
+
+    for q in quarters:
+        y = int(q[:4])
+        qi = int(q[6:])
+
+        dates["Date"].append(date(y, 3*qi - 2, 1))
+
+    dates_df = pd.DataFrame(dates)
+
+    df = pd.concat([dates_df, values], axis = 1)
+
+    df = df[df["Date"] >= d_0]
+    df = df[df["Date"] <= d_f]
+    df.index = range(len(df.index))
+
+    def fix(col):
+        if col.name == "Date":
+            return col
+        
+        newcol = []
+
+        for x in col:
+            try:
+                newcol.append(np.float64(x))
+            except:
+                newcol.append(float('nan'))
+
+        return newcol
+
+    df = df.apply(fix)
+
+    for col in df.columns:
+        if df[col][0] != df[col][0]:
+            df.pop(col)
 
     return df
 
@@ -130,28 +195,30 @@ if __name__ == "__main__":
     un_rates = get_unemployment_rates()
     cpi = get_cpi()
     house_prices = get_house_prices()
+    labor_productivity = get_labor_productivity()
 
     output_path = os.path.join(os.getcwd(), "Cleaned Data")
+    if not os.path.isdir(output_path):
+        os.mkdir(output_path)
 
-    for i in range(len(yield_rates["Date"])):
-        yield_rates.at[i, "Date"] = yield_rates.loc[i, "Date"].strftime("%d/%m/%Y")
-    
-    yield_rates.pop("2 Mo")
-    yield_rates.pop("4 Mo")
+    dfs = [yield_rates, 
+           un_rates, 
+           cpi, 
+           house_prices, 
+           labor_productivity
+           ]
+    names = ["yield_curve_rates_daily_2013_2024.csv", 
+             "unemployment_rate_monthly.csv", 
+             "consumer_price_index_quarterly.csv", 
+             "average_house_price_quarterly.csv", 
+             "labor_productivity_quarterly.csv"
+             ]
 
-    yield_rates.to_csv(os.path.join(output_path, "yield_curve_rates_daily_2013_2024.csv"), index = False)
+    for i in range(len(dfs)):
+        df = dfs[i]
+        name = names[i]
 
-    for i in range(len(un_rates["Date"])):
-        un_rates.at[i, "Date"] = un_rates.loc[i, "Date"].strftime("%d/%m/%Y")
-    
-    un_rates.to_csv(os.path.join(output_path, "unemployment_rate_monthly.csv"), index = False)
-
-    for i in range(len(cpi["Date"])):
-        cpi.at[i, "Date"] = cpi.loc[i, "Date"].strftime("%d/%m/%Y")
-    
-    cpi.to_csv(os.path.join(output_path, "consumer_price_index_quarterly.csv"), index = False)
-
-    for i in range(len(house_prices["Date"])):
-        house_prices.at[i, "Date"] = house_prices.loc[i, "Date"].strftime("%d/%m/%Y")
-    
-    house_prices.to_csv(os.path.join(output_path, "average_house_price_quarterly.csv"), index = False)
+        for i in range(len(df["Date"])):
+            df.at[i, "Date"] = df.loc[i, "Date"].strftime("%d/%m/%Y")
+        
+        df.to_csv(os.path.join(output_path, name), index = False)
