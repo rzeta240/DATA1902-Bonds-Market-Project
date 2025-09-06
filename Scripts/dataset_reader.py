@@ -44,19 +44,23 @@ def percent_present(data_name, df):
     print(" | ".join([f"{df.columns[i].center(data_name_lens[i])}" for i in range( len( percent_data_present ) )]))
     print(" | ".join([f"{percent_data_present[i].center(data_name_lens[i])}" for i in range( len( percent_data_present ) )]))
 
-
-def get_yield_curve_rates(loadmsg = False):
-    df = pd.read_csv(os.path.join(datasets_path, "yield_curve_rates_daily.csv"))
-
+def load_and_format_dates(df, format):
     for i in range( len( df["Date"] ) ):
         date_str = df["Date"][i]
 
-        date_obj = datetime.date(datetime.strptime(date_str, "%m/%d/%Y"))
+        date_obj = datetime.date(datetime.strptime(date_str, format))
         
         df.at[i, "Date"] = date_obj
 
     df = df[df["Date"] >= d_0]
     df = df[df["Date"] <= d_f]
+
+    return df
+
+def get_yield_curve_rates(loadmsg = False):
+    df = pd.read_csv(os.path.join(datasets_path, "yield_curve_rates_daily.csv"))
+
+    df = load_and_format_dates(df, "%m/%d/%Y")
     
     df.pop("2 Mo")
     df.pop("4 Mo")
@@ -71,15 +75,7 @@ def get_yield_curve_rates(loadmsg = False):
 def get_unemployment_rates(loadmsg = False):
     df = pd.read_csv(os.path.join(datasets_path, "unemployment_rate_monthly.csv"))
 
-    for i in range( len( df["Date"] ) ):
-        date_str = df["Date"][i]
-
-        date_obj = datetime.date(datetime.strptime(date_str, "%Y-%m-%d"))
-        
-        df.at[i, "Date"] = date_obj
-
-    df = df[df["Date"] >= d_0]
-    df = df[df["Date"] <= d_f]
+    df = load_and_format_dates(df, "%Y-%m-%d")
 
     if loadmsg:
         percent_present("Unemployment", df)
@@ -91,15 +87,7 @@ def get_unemployment_rates(loadmsg = False):
 def get_cpi(loadmsg = False):
     df = pd.read_csv(os.path.join(datasets_path, "consumer_price_index_quarterly.csv"))
 
-    for i in range( len( df["Date"] ) ):
-        date_str = df["Date"][i]
-
-        date_obj = datetime.date(datetime.strptime(date_str, "%m/%d/%Y"))
-        
-        df.at[i, "Date"] = date_obj
-
-    df = df[df["Date"] >= d_0]
-    df = df[df["Date"] <= d_f]
+    df = load_and_format_dates(df, "%m/%d/%Y")
 
     if loadmsg:
         percent_present("CPI (Inflation)", df)
@@ -110,16 +98,8 @@ def get_cpi(loadmsg = False):
 
 def get_house_prices(loadmsg = False):
     df = pd.read_csv(os.path.join(datasets_path, "average_house_price_quarterly.csv"))
-
-    for i in range( len( df["Date"] ) ):
-        date_str = df["Date"][i]
-
-        date_obj = datetime.date(datetime.strptime(date_str, "%Y-%m-%d"))
-        
-        df.at[i, "Date"] = date_obj
-
-    df = df[df["Date"] >= d_0]
-    df = df[df["Date"] <= d_f]
+    
+    df = load_and_format_dates(df, "%Y-%m-%d")
 
     if loadmsg:
         percent_present("House Price", df)
@@ -193,15 +173,7 @@ def get_labor_productivity(loadmsg = False):
 def get_gdp(loadmsg = False):
     df = pd.read_csv(os.path.join(datasets_path, "GDP_quarterly.csv"))
 
-    for i in range( len( df["Date"] ) ):
-        date_str = df["Date"][i]
-
-        date_obj = datetime.date(datetime.strptime(date_str, "%Y-%m-%d"))
-        
-        df.at[i, "Date"] = date_obj
-
-    df = df[df["Date"] >= d_0]
-    df = df[df["Date"] <= d_f]
+    df = load_and_format_dates(df, "%Y-%m-%d")
 
     if loadmsg:
         percent_present("GDP", df)
