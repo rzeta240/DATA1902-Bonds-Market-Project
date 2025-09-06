@@ -190,12 +190,33 @@ def get_labor_productivity(loadmsg = False):
 
     return df
 
+def get_gdp(loadmsg = False):
+    df = pd.read_csv(os.path.join(datasets_path, "GDP_quarterly.csv"))
+
+    for i in range( len( df["Date"] ) ):
+        date_str = df["Date"][i]
+
+        date_obj = datetime.date(datetime.strptime(date_str, "%Y-%m-%d"))
+        
+        df.at[i, "Date"] = date_obj
+
+    df = df[df["Date"] >= d_0]
+    df = df[df["Date"] <= d_f]
+
+    if loadmsg:
+        percent_present("GDP", df)
+
+    df.sort_values("Date")
+
+    return df
+
 if __name__ == "__main__":
     yield_rates = get_yield_curve_rates()
     un_rates = get_unemployment_rates()
     cpi = get_cpi()
     house_prices = get_house_prices()
     labor_productivity = get_labor_productivity()
+    gdp = get_gdp()
 
     output_path = os.path.join(os.getcwd(), "Cleaned Data")
     if not os.path.isdir(output_path):
@@ -205,13 +226,15 @@ if __name__ == "__main__":
            un_rates, 
            cpi, 
            house_prices, 
-           labor_productivity
+           labor_productivity,
+           gdp
            ]
     names = ["yield_curve_rates_daily_2013_2024.csv", 
              "unemployment_rate_monthly.csv", 
              "consumer_price_index_quarterly.csv", 
              "average_house_price_quarterly.csv", 
-             "labor_productivity_quarterly.csv"
+             "labor_productivity_quarterly.csv",
+             "GDP_quarterly.csv"
              ]
 
     for i in range(len(dfs)):
