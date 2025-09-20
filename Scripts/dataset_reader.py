@@ -108,7 +108,7 @@ def get_house_prices(loadmsg = False): # Load the House prices dataset
 
     return df
 
-def get_gdp(loadmsg = False): # Load the GSP dataset
+def get_gdp(loadmsg = False): # Load the GDP dataset
     df = pd.read_csv(os.path.join(datasets_path, "GDP_quarterly.csv"))
 
     df = load_and_format_dates(df, "%Y-%m-%d")
