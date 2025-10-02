@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
 from matplotlib import cm
-from matplotlib.ticker import LinearLocator
 
 from Scripts.dataset_reader import get_yield_curve_rates
 

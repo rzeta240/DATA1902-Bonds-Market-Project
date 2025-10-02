@@ -40,7 +40,8 @@ else:
     plt.title(f"Normalised graphs over time of {", ".join([ names[i] for i in choices ])}", wrap=True)
     
     ax.set_ylim( [-0.1, 1.1] ) # Make sure it fits
+
+    plt.legend() # Add legend
     
 plt.xlabel("Date") 
-plt.legend() # Add legend
 plt.show()
