@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
 from matplotlib import cm
-from matplotlib.ticker import LinearLocator
 
 from Scripts.dataset_reader import get_yield_curve_rates
 
@@ -36,7 +35,7 @@ for i in range( len( dates ) ):
 
 t = np.array(sorted(dates))
 print(t)
-m = np.array([1, 2, 3, 4, 6, 12, 24, 36, 60, 84, 120, 240, 360])
+m = np.array([1, 3, 6, 12, 24, 36, 60, 84, 120, 240, 360])
 
 t, m = np.meshgrid(t, m)
 

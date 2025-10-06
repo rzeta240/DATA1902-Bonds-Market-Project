@@ -14,7 +14,7 @@ def curve_values(d):
     row = yield_curve_rates.loc[yield_curve_rates["Date"] == d]
 
     if not row.empty:
-        return row.iloc[:, 1:14].to_numpy().flatten()
+        return row.iloc[:, 1:12].to_numpy().flatten()
     else:
         return np.array([])
 
@@ -26,7 +26,7 @@ ax = fig.add_subplot(111)
 
 fig.subplots_adjust(left=0.1, bottom=0.25)
 
-m = np.array([1, 2, 3, 4, 6, 12, 24, 36, 60, 84, 120, 240, 360])
+m = np.array([1, 3, 6, 12, 24, 36, 60, 84, 120, 240, 360])
 date_0 = date(2013, 1, 2)
 
 [yield_curve] = ax.plot(m, curve_values(date_0), linewidth = 2, color="black")

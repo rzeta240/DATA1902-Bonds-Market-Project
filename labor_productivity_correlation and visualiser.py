@@ -3,27 +3,14 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from Scripts.dataset_reader import get_labor_productivity
 
-labor = get_labor_productivity()
+labor = get_labor_productivity().iloc[:, 1:]
 
-measure = "Labor compensation"
+plt.figure(figsize=(10, 8))  # increase figure size
+sns.heatmap(labor.corr(), fmt=".2f", cmap="coolwarm")
 
-col = [i for i in range(len(labor.columns)) if measure in labor.columns[i]]
-
-productivity = labor.iloc[:, col].transpose()
-productivity.columns = labor["Date"]
-
-print(productivity)
-
-correlation_matrix = np.corrcoef(productivity)
-
-print(correlation_matrix)
-
-for i in col:
-    plt.plot(labor.iloc[:, i])
-
-plt.title(measure)
-
+plt.tight_layout()  # adjust margins so labels fit
 plt.show()
