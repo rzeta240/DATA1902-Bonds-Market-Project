@@ -21,5 +21,4 @@ print(q75 - q25)
 print(med)
 print(np.mean(df["CPIAUCSL_PC1"]))
 print(med - 1.5*iqr, med + 1.5 * iqr)
-for i in range(len(outliers["Date"])):
-    print(f"\\hline\n{outliers.iloc[i, 0].year} Q{(outliers.iloc[i, 0].month - 1)/3 + 1:.0f} & {outliers.iloc[i, 1]} \\\\")
+print(outliers)
