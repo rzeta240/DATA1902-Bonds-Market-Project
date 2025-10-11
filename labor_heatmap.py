@@ -19,13 +19,18 @@ plt.figure(figsize=(10, 7.5))
 labor_heatmap = sns.heatmap(filtered_df, 
             cmap='RdYlGn', 
             center=0,
-            cbar_kws={'label': 'Labor Productivity'})
-
+            cbar_kws={'label': '% Change in Productivity'},
+            linewidths=0.5, 
+            linecolor='white')
 
 plt.title('Labor Productivity by Sector Over Time')
-plt.ylabel('Year')
+plt.ylabel('Year (Quarterly)')
 plt.xlabel('Sectors')
 plt.xticks(rotation=20)
 plt.tight_layout()
+
+for x in range(1, len(filtered_df.columns)):
+    plt.axvline(x, color='white', lw=1.2)
+
 plt.show()
 
