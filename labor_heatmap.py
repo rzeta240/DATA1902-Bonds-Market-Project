@@ -5,7 +5,7 @@ import seaborn as sns
 from Scripts.dataset_reader import get_labor_productivity
 df = get_labor_productivity()
 
-# Select rows for labor productivity only 
+# Select columns for labor productivity only 
 filtered_df = df.filter(like='Labor productivity')
 
 # Set date column as index
