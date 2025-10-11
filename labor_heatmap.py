@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 
 from Scripts.dataset_reader import get_labor_productivity
 df = get_labor_productivity()
@@ -10,6 +11,13 @@ filtered_df = df.filter(like='Labor productivity')
 
 # Set date column as index
 filtered_df = filtered_df.set_index(df.iloc[:, 0])
+
+for i in range(len(filtered_df.columns)): # Convert to Log Plot 
+    logged = filtered_df.iloc[:, i]
+    logged = np.log10(np.abs(logged))*np.sign(logged)
+    filtered_df.iloc[:, i] = logged
+
+filtered_df = filtered_df.fillna(0)
 
 # Simplify sector names
 cleaned_sector_names = [col.replace('sector Labor productivity', '') for col in filtered_df.columns]
