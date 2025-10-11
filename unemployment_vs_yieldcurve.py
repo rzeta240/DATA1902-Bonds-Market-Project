@@ -56,8 +56,11 @@ def make_combined_chart(unemp: pd.DataFrame, spread: pd.DataFrame, out_dir: Path
     colors = merged["QoQ_Change_%"].apply(lambda x: "firebrick" if x > 0 else "seagreen")
     ax1.bar(merged["Date"], merged["QoQ_Change_%"], width=bar_width,
             color=colors, alpha=0.7, label="Unemployment QoQ Change (%)")
+
+    # Apply symmetric log scale for large outliers but preserve near-zero detail
+    ax1.set_yscale("symlog", linthresh=1)  # linear around 0, log elsewhere
+    ax1.set_ylabel("Quarterly Change in Unemployment Rate (symlog scale, %)", color="firebrick")
     ax1.axhline(0, color="black", linewidth=1)
-    ax1.set_ylabel("Quarter-over-Quarter Change in Unemployment Rate (%)", color="firebrick")
 
     # Right y-axis: yield-curve spread line
     ax2 = ax1.twinx()
@@ -72,7 +75,7 @@ def make_combined_chart(unemp: pd.DataFrame, spread: pd.DataFrame, out_dir: Path
     plt.xticks(rotation=30)
 
     # Title & legends
-    plt.title("Unemployment Rate Change vs Yield-Curve Spread (2013–2025)")
+    plt.title("Quarterly Change in Unemployment Rate vs Yield-Curve Spread (2013–2025)")
     h1, l1 = ax1.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
     ax1.legend(h1 + h2, l1 + l2, loc="upper right")
