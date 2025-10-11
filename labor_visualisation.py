@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 from Scripts.dataset_reader import get_labor_productivity
@@ -32,5 +33,4 @@ plt.xticks(rotation=45)
 plt.legend()
 plt.grid(alpha=0.3)
 plt.tight_layout()
-plt.savefig('plot.png')
 plt.show()
