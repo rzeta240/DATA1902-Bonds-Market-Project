@@ -12,7 +12,9 @@ filtered_df = df.filter(like='Labor productivity')
 # Set date column as index
 filtered_df = filtered_df.set_index(df.iloc[:, 0])
 
-for i in range(len(filtered_df.columns)): # Convert to Log Plot 
+# Convert to Log Plot to highlight differences in colour
+# since outliers would mask more regular variations
+for i in range(len(filtered_df.columns)): 
     logged = filtered_df.iloc[:, i]
     logged = np.log10(np.abs(logged))*np.sign(logged)
     filtered_df.iloc[:, i] = logged
