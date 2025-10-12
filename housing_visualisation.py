@@ -104,30 +104,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-# Summary statistics for Average House Price dataset:
-# ---------------------------------------------------
-# count : 50.0           → Total number of quarterly observations
-# mean  : 413775.00      → Average house price (USD)
-# std   : 66184.72       → Standard deviation (price variability)
-# min   : 307400.00      → Minimum average price recorded
-# 25%   : 364150.00      → First quartile (25th percentile)
-# 50%   : 384300.00      → Median (50th percentile)
-# 75%   : 496700.00      → Third quartile (75th percentile)
-# max   : 525100.00      → Maximum average price recorded
-
-
-# Yearly Average House Prices:
-# ----------------------------
-# 2013 : 321650.00
-# 2014 : 345950.00
-# 2015 : 350950.00
-# 2016 : 359650.00
-# 2017 : 381150.00
-# 2018 : 382975.00
-# 2019 : 379875.00
-# 2020 : 387400.00
-# 2021 : 452675.00
-# 2022 : 516425.00
-# 2023 : 507625.00
-# 2024 : 507375.00
-# 2025 : 513500.00

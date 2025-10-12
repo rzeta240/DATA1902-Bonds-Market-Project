@@ -109,31 +109,3 @@ def main():
 # Run script
 if __name__ == "__main__":
     main()
-
-# Summary statistics for Average Unemployment Rate dataset:
-# ---------------------------------------------------------
-# count : 50.0           → Total number of quarterly observations
-# mean  : 5.10           → Average unemployment rate (%)
-# std   : 1.71           → Standard deviation (volatility)
-# min   : 3.50           → Minimum average unemployment rate recorded
-# 25%   : 3.80           → First quartile (25th percentile)
-# 50%   : 4.40           → Median (50th percentile)
-# 75%   : 5.90           → Third quartile (75th percentile)
-# max   : 12.97          → Maximum average unemployment rate recorded
-
-
-# Yearly Average Unemployment Rates:
-# ----------------------------------
-# 2013 : 7.3
-# 2014 : 6.2
-# 2015 : 5.3
-# 2016 : 4.9
-# 2017 : 4.3
-# 2018 : 3.9
-# 2019 : 3.7
-# 2020 : 9.8
-# 2021 : 5.9
-# 2022 : 3.6
-# 2023 : 3.6
-# 2024 : 4.1
-# 2025 : 4.2

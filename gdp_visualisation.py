@@ -104,31 +104,3 @@ def main():
 # Run main
 if __name__ == "__main__":
     main()
-
-# Summary statistics for GDP dataset:
-# -----------------------------------
-# count : 50.0           → Total number of quarterly observations
-# mean  : 22113.93       → Average GDP value
-# std   : 4202.23        → Standard deviation (measure of variability)
-# min   : 16648.19       → Minimum GDP recorded
-# 25%   : 18572.38       → First quartile (25th percentile)
-# 50%   : 21014.73       → Median (50th percentile)
-# 75%   : 25658.22       → Third quartile (75th percentile)
-# max   : 30353.90       → Maximum GDP recorded
-
-
-# Yearly GDP values:
-# ------------------
-# 2013 : 16880.68
-# 2014 : 17608.14
-# 2015 : 18295.02
-# 2016 : 18804.91
-# 2017 : 19612.10
-# 2018 : 20656.52
-# 2019 : 21539.98
-# 2020 : 21354.10
-# 2021 : 23681.17
-# 2022 : 26006.89
-# 2023 : 27720.71
-# 2024 : 29184.89
-# 2025 : 30157.97
