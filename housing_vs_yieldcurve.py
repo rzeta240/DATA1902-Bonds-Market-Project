@@ -60,6 +60,7 @@ def make_combined_chart(house: pd.DataFrame, spread: pd.DataFrame, out_dir: Path
     ax2.plot(merged["Date"], merged["Spread_10y_2y"], color="royalblue",
              linewidth=2, label="10-2Y Spread (%)")
     ax2.set_ylabel("10-Year – 2-Year Spread (%)", color="royalblue")
+    ax2.axhline(0, color="royalblue", linestyle="--", linewidth=1.5, alpha=0.7)
 
     # X-axis formatting
     ax1.set_xlabel("Date")
