@@ -7,18 +7,14 @@ from Scripts.dataset_reader import get_cpi
 
 df = get_cpi()
 
-x = df["Date"]
-y = df.iloc[:, 1]
-int_y = np.cumsum(y)
+q75, med, q25 = np.percentile(df["CPIAUCSL_PC1"], [75, 50, 25]) # Obtain quartile values for the dataset, for calculating the IQR and outlier range
+iqr = q75 - q25 # Calculate the IQR
 
-q75, med, q25 = np.percentile(df["CPIAUCSL_PC1"], [75, 50, 25])
-iqr = q75 - q25
+outliers = df[ (df["CPIAUCSL_PC1"] > med + 1.5*iqr) | (df["CPIAUCSL_PC1"] < med - 1.5*iqr) ] # Obtain the values that are considered outliers, ie x > ||IQR||*1.5
 
-outliers = df[ (df["CPIAUCSL_PC1"] > med + 1.5*iqr) | (df["CPIAUCSL_PC1"] < med - 1.5*iqr) ]
-
-print(q25, q75)
-print(q75 - q25)
-print(med)
-print(np.mean(df["CPIAUCSL_PC1"]))
-print(med - 1.5*iqr, med + 1.5 * iqr)
-print(outliers)
+print(q25, q75) # The 25th and 75th quartile, ie the IQR
+print(q75 - q25) # ||IQR||
+print(med) # Median
+print(np.mean(df["CPIAUCSL_PC1"])) # Mean
+print(med - 1.5*iqr, med + 1.5 * iqr) # The outlier range
+print(outliers) # A table of the outliers
