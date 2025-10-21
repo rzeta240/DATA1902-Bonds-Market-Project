@@ -43,7 +43,7 @@ output_path = os.path.join(os.getcwd(), "Cleaned Data")
 
 data_full.to_csv("joined_file_smoothing.csv", index = False) # Save the dataset
 
-look_fwd_windows = [3, 5, 7, 10, 15, 20, 25, 30]
+look_fwd_windows = [3, 5, 7, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200]
 spreads = [["1 Mo", "3 Mo"], ["1 Mo", "6 Mo"], ["3 Mo", "6 Mo"], ["3 Mo", "3 Yr"],["3 Mo", "1 Yr"], ["1 Yr", "3 Yr"], ["1 Yr", "5 Yr"], ["2 Yr", "10 Yr"], ["1 Yr", "10 Yr"], ["3 Yr", "5 Yr"], ["3 Yr", "20 Yr"], ["3 Yr", "30 Yr"], ["5 Yr", "10 Yr"], ["5 Yr", "20 Yr"], ["5 Yr", "30 Yr"], ["10 Yr", "30 Yr"], ["10 Yr", "20 Yr"]]
 
 for spread in spreads: 
