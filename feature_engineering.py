@@ -22,7 +22,7 @@ data_full = pd.merge(data_full, labor_productivity, how = "outer", on = "Date")
 
 # data_full.to_csv("joined_file.csv", index = False) # Save the dataset
 
-data_full.fillna(method = "ffill", inplace = True)
+data_full.ffill(inplace=True)
 
 
 # output_path = os.path.join(os.getcwd(), "Cleaned Data")
@@ -37,7 +37,8 @@ for column in data_full.columns:
         smoothed_col_name = f"{column}_smoothed"
         model = SimpleExpSmoothing(data_full[column])
         data_full[smoothed_col_name] = (model.fit(smoothing_level = alpha, optimized = False)).fittedvalues
-        data_full[f"{column}_resid"] = data_full[column] - data_full[smoothed_col_name]
+        column_name = f"{column}_resid"
+        data_full = data_full.assign(column_name = data_full[column] - data_full[smoothed_col_name])
 
 output_path = os.path.join(os.getcwd(), "Cleaned Data")
 
@@ -54,8 +55,7 @@ for column in yield_curve_data.columns:
     if column != "Date":
         for window in look_fwd_windows: 
             column_name = f"{column}_{window}d_change"
-            yield_curve_data[column_name] = yield_curve_data[column].shift(-window) - yield_curve_data[column]
-
+            yield_curve_data = yield_curve_data.assign(column_name = yield_curve_data[column].shift(-window) - yield_curve_data[column])
 
 # output_path = os.path.join(os.getcwd(), "Cleaned Data")
 
