@@ -55,10 +55,10 @@ for column in yield_curve_data.columns:
     if column != "Date":
         for window in look_fwd_windows: 
             column_name = f"{column}_{window}d_change"
-            yield_curve_data = yield_curve_data.assign(column_name = yield_curve_data[column].shift(-window) - yield_curve_data[column])
+            yield_curve_data = yield_curve_data.assign(column_name = yield_curve_data[column].shift(window) - yield_curve_data[column])
 
-# output_path = os.path.join(os.getcwd(), "Cleaned Data")
+output_path = os.path.join(os.getcwd(), "Cleaned Data")
 
-# yield_curve_data.to_csv("yield_curve_ftreng.csv", index = False) # Save the dataset
+yield_curve_data.to_csv("yield_curve_ftreng.csv", index = False) # Save the dataset
 
 
