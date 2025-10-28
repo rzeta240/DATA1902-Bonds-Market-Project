@@ -25,9 +25,9 @@ data_full = pd.merge(data_full, labor_productivity, how = "outer", on = "Date")
 data_full.ffill(inplace=True)
 
 
-# output_path = os.path.join(os.getcwd(), "Cleaned Data")
+output_path = os.path.join(os.getcwd(), "Cleaned Data")
 
-# data_full.to_csv("joined_file_filled.csv", index = False) # Save the dataset
+data_full.to_csv("joined_file_filled.csv", index = False) # Save the dataset
 
 #Value that defines strength of the smoothing 
 alpha = 0.2 
@@ -55,10 +55,10 @@ for column in yield_curve_data.columns:
     if column != "Date":
         for window in look_fwd_windows: 
             column_name = f"{column}_{window}d_change"
-            yield_curve_data = yield_curve_data.assign(column_name = yield_curve_data[column].shift(-window) - yield_curve_data[column])
+            yield_curve_data[column_name] = yield_curve_data[column].shift(window) - yield_curve_data[column]
 
-# output_path = os.path.join(os.getcwd(), "Cleaned Data")
+output_path = os.path.join(os.getcwd(), "Cleaned Data")
 
-# yield_curve_data.to_csv("yield_curve_ftreng.csv", index = False) # Save the dataset
+yield_curve_data.to_csv("yield_curve_ftreng.csv", index = False) # Save the dataset
 
 
