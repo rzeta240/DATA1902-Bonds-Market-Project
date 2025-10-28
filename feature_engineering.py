@@ -58,7 +58,9 @@ for column in yield_curve_data.columns:
             yield_curve_data[column_name] = yield_curve_data[column].shift(window) - yield_curve_data[column]
 
 output_path = os.path.join(os.getcwd(), "Cleaned Data")
+output_path = os.path.join(os.getcwd(), "Cleaned Data")
 
+yield_curve_data.to_csv("yield_curve_ftreng.csv", index = False) # Save the dataset
 yield_curve_data.to_csv("yield_curve_ftreng.csv", index = False) # Save the dataset
 
 
