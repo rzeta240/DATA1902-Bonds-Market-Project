@@ -4,3 +4,7 @@ surface.stl
 Cleaned Data
 Test.csv
 Test1.csv
+training_x_data.csv
+training_y_data.csv
+validation_x_data.csv
+validation_y_data.csv
