@@ -84,6 +84,8 @@ train = all_data[all_data["Date"] < '2020-12-31']
 
 validation = all_data[(all_data["Date"] < '2022-12-31')&(all_data["Date"] > '2020-12-31')]
 
+test = all_data[all_data["Date"] >= '2022-12-31']
+
 x_cols = list(data_full.columns)
 y_cols = list(filled_yield_data.columns)
 
@@ -92,3 +94,6 @@ train[y_cols].to_csv("training_y_data.csv", index = False)
 
 validation[x_cols].to_csv("validation_x_data.csv", index = False)
 validation[y_cols].to_csv("validation_y_data.csv", index = False)
+
+test[x_cols].to_csv("test_x_data.csv", index = False)
+test[y_cols].to_csv("test_y_data.csv", index = False)
