@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
-import os
-import time
+import os, time
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score
 from tqdm import tqdm
@@ -10,109 +9,135 @@ from matplotlib.colors import LinearSegmentedColormap
 
 start = time.time()
 
-# Load training and validation datasets
+
+# Load dataset and convert Date to index for time-series use
 def load_data():
     global x_train, x_val, y_train, y_val, y_cols
+    
+    # Load training and validation feature sets
+    x_train = pd.read_csv("training_x_data.csv").set_index("Date")
+    x_train.index = pd.to_datetime(x_train.index)
 
-    x_train = pd.read_csv("training_x_data.csv")
-    x_train["Date"] = pd.to_datetime(x_train["Date"])
-    x_train.set_index("Date", inplace=True)
+    x_val = pd.read_csv("validation_x_data.csv").set_index("Date")
+    x_val.index = pd.to_datetime(x_val.index)
 
-    x_val = pd.read_csv("validation_x_data.csv")
-    x_val["Date"] = pd.to_datetime(x_val["Date"])
-    x_val.set_index("Date", inplace=True)
+    # Load training and validation target (yield spread changes)
+    y_train = pd.read_csv("training_y_data.csv").set_index("Date")
+    y_train.index = pd.to_datetime(y_train.index)
 
-    y_train = pd.read_csv("training_y_data.csv")
-    y_train["Date"] = pd.to_datetime(y_train["Date"])
-    y_train.set_index("Date", inplace=True)
+    y_val = pd.read_csv("validation_y_data.csv").set_index("Date")
+    y_val.index = pd.to_datetime(y_val.index)
 
-    y_val = pd.read_csv("validation_y_data.csv")
-    y_val["Date"] = pd.to_datetime(y_val["Date"])
-    y_val.set_index("Date", inplace=True)
-
+    # Store target column names (each spread is a target)
     y_cols = y_train.columns
 
+# run feature engineering
 try:
     load_data()
 except:
     os.system("python3 feature_engineering.py")
     load_data()
 
-# Initialize storage for model evaluation results
+
+# Train RF for each yield spread & rank by validation R²
 results = []
+models = {}
 
-# Train one random forest per target and evaluate on validation window
 for col in tqdm(y_cols, desc="Training RF Models", ncols=90):
-    y_train_col = y_train[col]
-    y_val_col = y_val[col]
+    
+    # Train one random forest per target spread
+    model = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1)
+    model.fit(x_train, y_train[col])
+    
+    # Predict on validation window (2021–2022)
+    pred = model.predict(x_val)
+    
+    # Compute R² accuracy to rank models
+    r2 = r2_score(y_val[col], pred)
+    
+    results.append({"target": col, "R2": r2})
 
-    model = RandomForestRegressor(
-        n_estimators=300,      # number of trees
-        random_state=42,       # reproducibility
-        n_jobs=-1              # use all CPU cores
-    )
-
-    model.fit(x_train, y_train[col])         # train model on 2013–2020
-    y_pred = model.predict(x_val)            # validate on 2021–2022
-
-    r2 = r2_score(y_val[col], y_pred)        # R² score on validation
-
-    results.append({
-        "target": col,
-        "R2": r2
-    })
-
-# Rank targets and select the top-16 performers
+# Select the top 16 spreads by predictive performance
 results_df = pd.DataFrame(results).sort_values(by="R2", ascending=False)
-top16 = results_df.head(16)
-best_targets = list(top16["target"])
+best_targets = list(results_df.head(16)["target"])
+print("Top 16:", best_targets)
 
-# Save selected spreads for later out-of-sample testing
-top16.to_csv("rf_selected_targets.csv", index=False)
+# Train final RF models for the winning spreads
+for col in best_targets:
+    m = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1)
+    m.fit(x_train, y_train[col])
+    models[col] = m
 
-print("Top 16 spreads selected and saved to rf_selected_targets.csv")
-print(top16)
 
-# scatter plot aesthetics
-colors = ["#7db9e8", "#a18cd1", "#fbc2eb", "#f6d365", "#fda085"]
-cmap = LinearSegmentedColormap.from_list("soft_grad", colors)
+# Load test window (2023–2024) for out-of-sample evaluation
+test_x = pd.read_csv("test_x_data.csv").set_index("Date")
+test_y = pd.read_csv("test_y_data.csv").set_index("Date")
+test_x.index = pd.to_datetime(test_x.index)
+test_y.index = pd.to_datetime(test_y.index)
 
-# Plot scatter charts for top-16 spreads
-fig, axes = plt.subplots(4, 4, figsize=(15,10))
+pnl_results = {}
+hit_results = {}
+
+
+# Convert model forecasts into trading positions & P&L
+
+for col in best_targets:
+    
+    # Only use rows where target has valid values
+    idx = ~test_y[col].isna() # ~ is the logical NOT operator for pandas boolean arrays.
+    X = test_x.loc[idx]
+    y = test_y.loc[idx, col]
+
+    # Predict yield change for test window
+    pred = models[col].predict(X)
+
+    # Trading rule:
+    # If predicted yields rise then short bonds, else long bonds
+    signal = np.where(pred > 0, -1, 1)
+
+    # Scale position by prediction confidence (size between 0.3 and 1)
+    scale = np.abs(pred) / (np.mean(np.abs(pred)) + 1e-6)
+    size = np.clip(scale, 0.3, 1.0)
+
+    # Convert yield move into P&L in basis points ($100 per bp)
+    pnl = -signal * size * y * 100
+    pnl_results[col] = pnl
+
+    # Compute directional accuracy (hit rate)
+    hit_results[col] = np.mean((signal > 0) == (y < 0))
+
+
+# Sort spreads by profitability for clean visual ranking
+sorted_targets = sorted(best_targets, key=lambda c: pnl_results[c].sum(), reverse=True)
+
+
+# Plot cumulative P&L for each spread (our trading performance)
+colors = ["#7db9e8","#a18cd1","#fbc2eb","#f6d365","#fda085"]
+cmap = LinearSegmentedColormap.from_list("grad", colors)
+
+fig, axes = plt.subplots(4,4, figsize=(15,10))
 axes = axes.flatten()
 
-for i, col in enumerate(best_targets):
-    model = RandomForestRegressor(
-        n_estimators=300,      # number of trees
-        random_state=42,       # reproducibility
-        n_jobs=-1              # use all CPU cores
+for i, col in enumerate(sorted_targets):
+    
+    pnl = pnl_results[col]
+    cum = np.cumsum(pnl)
+    
+    # Color intensity based on profit trend
+    norm = (cum - cum.min()) / (cum.max() - cum.min() + 1e-6)
+
+    # Plot cumulative returns curve 
+    axes[i].plot(cum.index, cum, color="#7db9e8", linewidth=2)
+    axes[i].scatter(cum.index, cum, c=cmap(norm), s=35, alpha=0.9, marker="^")
+    axes[i].axhline(0, color="#e57373", linestyle="--")
+
+    axes[i].set_title(
+        f"Spread: {col}\nTotal Cumulative Profit: ${cum.iloc[-1]:,.0f}\nDirectional Accuracy: {hit_results[col]*100:.1f}%",
+        fontsize=8
     )
-    model.fit(x_train, y_train[col])
-    y_pred = model.predict(x_val)
-
-    actual = y_val[col]
-    norm = (actual - actual.min()) / (actual.max() - actual.min())
-
-    axes[i].scatter(
-        actual, 
-        y_pred,
-        marker="^",
-        c=cmap(norm),
-        s=48,
-        alpha=0.75,
-        linewidths=0
-    )
-
-    axes[i].plot(actual, actual, color="#e57373", linestyle="--", linewidth=1.6, alpha=0.9)
-
-    axes[i].set_xlabel("Actual Yield Change")
-    axes[i].set_ylabel("Predicted Yield Change")
-
-    axes[i].set_title(f"{col}\nR²={r2_score(actual, y_pred):.2f}", fontsize=9)
-    axes[i].tick_params(labelsize=8)
+    axes[i].tick_params(labelsize=7)
 
 plt.tight_layout()
 plt.show()
 
-end = time.time()
-print(f"Training and visualization completed in {end - start:.2f} seconds")
+print("\nDone in", round(time.time()-start,2), "sec")
