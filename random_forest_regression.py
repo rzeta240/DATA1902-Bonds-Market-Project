@@ -29,7 +29,7 @@ def load_data():
     y_val.index = pd.to_datetime(y_val.index)
 
     # Store target column names (each spread is a target)
-    y_cols = y_train.columns
+    y_cols = y_train.columns[11:]
 
 # run feature engineering
 try:
@@ -59,6 +59,9 @@ for col in tqdm(y_cols, desc="Training RF Models", ncols=90):
 
 # Select the top 16 spreads by predictive performance
 results_df = pd.DataFrame(results).sort_values(by="R2", ascending=False)
+
+print(results_df.head(16))
+
 best_targets = list(results_df.head(16)["target"])
 print("Top 16:", best_targets)
 
@@ -91,12 +94,15 @@ for col in best_targets:
     # Predict yield change for test window
     pred = models[col].predict(X)
 
+    pred1 = models[col].predict(x_train)
+    pred2 = models[col].predict(x_val)
+
     # Trading rule:
     # If predicted yields rise then short bonds, else long bonds
     signal = np.where(pred > 0, -1, 1)
 
     # Scale position by prediction confidence (size between 0.3 and 1)
-    scale = np.abs(pred) / (np.mean(np.abs(pred)) + 1e-6)
+    scale = 5 * np.abs(pred) / (np.mean(list(np.abs(pred1)) + list(np.abs(pred2))) + 1e-6)
     size = np.clip(scale, 0.3, 1.0)
 
     # Convert yield move into P&L in basis points ($100 per bp)
