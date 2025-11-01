@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import os, time
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, mean_squared_error
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -54,8 +54,9 @@ for col in tqdm(y_cols, desc="Training RF Models", ncols=90):
     
     # Compute R² accuracy to rank models
     r2 = r2_score(y_val[col], pred)
+    mse = mean_squared_error(y_val[col], pred)
     
-    results.append({"target": col, "R2": r2})
+    results.append({"target": col, "R2": r2, "MSE": mse})
 
 # Select the top 16 spreads by predictive performance
 results_df = pd.DataFrame(results).sort_values(by="R2", ascending=False)
@@ -64,6 +65,10 @@ print(results_df.head(16))
 
 best_targets = list(results_df.head(16)["target"])
 print("Top 16:", best_targets)
+
+# Print validation R² and MSE for the top 16
+print("\nValidation Metrics for Top 16:")
+print(results_df.head(16)[["target", "R2", "MSE"]])
 
 # Train final RF models for the winning spreads
 for col in best_targets:
@@ -81,6 +86,7 @@ test_y.index = pd.to_datetime(test_y.index)
 pnl_results = {}
 hit_results = {}
 
+print("\nTest Set Metrics for Top 16:")
 
 # Convert model forecasts into trading positions & P&L
 
@@ -93,6 +99,11 @@ for col in best_targets:
 
     # Predict yield change for test window
     pred = models[col].predict(X)
+
+    # Evaluate prediction accuracy on test set
+    rsq = r2_score(y, pred)
+    mse = mean_squared_error(y, pred)
+    print(f"{col} — Test R²: {rsq:.4f}, MSE: {mse:.4f}")
 
     pred1 = models[col].predict(x_train)
     pred2 = models[col].predict(x_val)
