@@ -104,14 +104,13 @@ for column in selected_y_vals:
     model.fit(x_train, y_train_col)
 
     mean = np.mean(np.abs([list(model.predict(x_validation)) + list(np.abs(model.predict(x_train)))]))
-    print(mean)
 
     for j in x_test.index:
         x = x_test.loc[[j], :]
         predicted = model.predict(x)
         y_pred.append(predicted[0])
 
-        position = -5 * float(predicted) / mean
+        position = -5 * float(predicted[0]) / mean
 
         # if predicted > 0:
         #     position = -5 # Short position 5k
@@ -126,15 +125,22 @@ for column in selected_y_vals:
             profit.append(0)
     all_profits[column] = profit
 
+all_profits = pd.DataFrame.from_dict(all_profits)
+all_profits = all_profits[all_profits.sum().sort_values(ascending=False).index]
+
+y_cols = all_profits.columns
+
+for i, y in enumerate(y_cols):
+    profit = all_profits[y]
+
     dates = x_test.index
     axes[i].plot(dates, profit, marker='.', alpha=0.7)
     axes[i].axhline(0, color='red', linestyle='--', linewidth=0.8)
     cum_profit = np.sum(profit)
-    axes[i].set_title(f'{column} (cumulative profit = ${cum_profit:,.0f})')
+    axes[i].set_title(f'{y} (cumulative profit = ${cum_profit:,.0f})')
     axes[i].set_xlabel('Date')
     axes[i].set_ylabel('Profit ($)')
     axes[i].tick_params(axis='x', rotation=25)
-    i += 1
 
     # rsq = r2_score(y_test_col, y_pred)
     # mse = mean_squared_error(y_test_col, y_pred)
@@ -147,7 +153,8 @@ for column in selected_y_vals:
     # i += 1
     # Plot profit time series for this target instead of predicted vs actual
     
-plt.tight_layout()
+# plt.tight_layout()
+fig.subplots_adjust(hspace=0.8, wspace=0.5)
 plt.show()
 
 profit_df = pd.DataFrame(all_profits)
