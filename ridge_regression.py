@@ -43,7 +43,7 @@ try:
 except:
     os.system("python3 feature_engineering.py") 
     load_data()
-load_data()
+
 #We want to loop through each y-variable and see which ones are most explainable by our input data. 
 results = []
 #Taking initial value of alpha = 10 (can change later...)
@@ -102,36 +102,50 @@ for column in selected_y_vals:
     y_test_col = y_test[column]
     model = Ridge(alp.iloc[0])
     model.fit(x_train, y_train_col)
+
+    mean = np.mean(np.abs([list(model.predict(x_validation)) + list(np.abs(model.predict(x_train)))]))
+    print(mean)
+
     for j in x_test.index:
         x = x_test.loc[[j], :]
         predicted = model.predict(x)
         y_pred.append(predicted[0])
 
-        if predicted > 0:
-            position = -5 # Short position 5k
-        else: 
-            position = 5  # Long position 5k / bp risk
-        profit.append(-y_test_col[j]*100*position) # Multiply by 100 to convert to basis points, and $100k of risk per basis point of change. Negative as yields inverse to price
+        position = -5 * float(predicted) / mean
+
+        # if predicted > 0:
+        #     position = -5 # Short position 5k
+        # else: 
+        #     position = 5  # Long position 5k / bp risk
+
+        current_profit = -y_test_col[j]*100*position
+
+        if not np.isnan(current_profit):
+            profit.append(current_profit) # Multiply by 100 to convert to basis points, and $100k of risk per basis point of change. Negative as yields inverse to price
+        else:
+            profit.append(0)
     all_profits[column] = profit
-    rsq = r2_score(y_test_col, y_pred)
-    mse = mean_squared_error(y_test_col, y_pred)
-    # Create a subplot for each target variable
-    axes[i].scatter(y_test_col, y_pred, alpha=0.6)
-    axes[i].plot(y_test_col, y_test_col, color='red', linestyle='--')  # Line of equality
-    axes[i].set_title(f'{column} (R² = {rsq:.2f}), (MSE = {mse:.2f})')
-    axes[i].set_xlabel('Actual Values')
-    axes[i].set_ylabel('Predicted Values')
+
+    dates = x_test.index
+    axes[i].plot(dates, profit, marker='.', alpha=0.7)
+    axes[i].axhline(0, color='red', linestyle='--', linewidth=0.8)
+    cum_profit = np.sum(profit)
+    axes[i].set_title(f'{column} (cumulative profit = ${cum_profit:,.0f})')
+    axes[i].set_xlabel('Date')
+    axes[i].set_ylabel('Profit ($)')
+    axes[i].tick_params(axis='x', rotation=25)
     i += 1
-    # # Plot profit time series for this target instead of predicted vs actual
-    # dates = x_test.index
-    # axes[i].plot(dates, profit, marker='.', alpha=0.7)
-    # axes[i].axhline(0, color='red', linestyle='--', linewidth=0.8)
-    # cum_profit = np.sum(profit)
-    # axes[i].set_title(f'{column} (cumulative profit = ${cum_profit:,.0f})')
-    # axes[i].set_xlabel('Date')
-    # axes[i].set_ylabel('Profit ($)')
-    # axes[i].tick_params(axis='x', rotation=25)
+
+    # rsq = r2_score(y_test_col, y_pred)
+    # mse = mean_squared_error(y_test_col, y_pred)
+    # Create a subplot for each target variable
+    # axes[i].scatter(y_test_col, y_pred, alpha=0.6)
+    # axes[i].plot(y_test_col, y_test_col, color='red', linestyle='--')  # Line of equality
+    # axes[i].set_title(f'{column} (R² = {rsq:.2f}), (MSE = {mse:.2f})')
+    # axes[i].set_xlabel('Actual Values')
+    # axes[i].set_ylabel('Predicted Values')
     # i += 1
+    # Plot profit time series for this target instead of predicted vs actual
     
 plt.tight_layout()
 plt.show()
