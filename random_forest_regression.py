@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os, time
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import ParameterGrid
 from sklearn.metrics import r2_score
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -44,11 +45,12 @@ results = []
 models = {}
 
 for col in tqdm(y_cols, desc="Training RF Models", ncols=90):
-    
     # Train one random forest per target spread
-    model = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1)
+    model = RandomForestRegressor(n_estimators=200, random_state=42, n_jobs=-1)
     model.fit(x_train, y_train[col])
-    
+
+    models[col] = model
+
     # Predict on validation window (2021–2022)
     pred = model.predict(x_val)
     
@@ -63,13 +65,12 @@ results_df = pd.DataFrame(results).sort_values(by="R2", ascending=False)
 print(results_df.head(16))
 
 best_targets = list(results_df.head(16)["target"])
-print("Top 16:", best_targets)
 
 # Train final RF models for the winning spreads
-for col in best_targets:
-    m = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1)
-    m.fit(x_train, y_train[col])
-    models[col] = m
+# for col in best_targets:
+#     m = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1)
+#     m.fit(x_train, y_train[col])
+#     models[col] = m
 
 
 # Load test window (2023–2024) for out-of-sample evaluation
@@ -99,7 +100,7 @@ for col in best_targets:
 
     # Trading rule:
     # If predicted yields rise then short bonds, else long bonds
-    signal = np.where(pred > 0, -1, 1)
+    signal = np.where(pred > 0, 1, -1)
 
     # Scale position by prediction confidence (size between 0.3 and 1)
     scale = 5 * np.abs(pred) / (np.mean(list(np.abs(pred1)) + list(np.abs(pred2))) + 1e-6)
