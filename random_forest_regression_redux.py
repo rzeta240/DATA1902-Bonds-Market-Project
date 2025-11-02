@@ -7,6 +7,7 @@ from sklearn.metrics import r2_score, mean_squared_error
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
+# Read in the data
 x_train = pd.read_csv("training_x_data.csv").set_index("Date")
 x_train.index = pd.to_datetime(x_train.index)
 
@@ -27,20 +28,24 @@ results = []
 models = {}
 
 for y in tqdm(y_cols, desc="Training RF Models", ncols=90):
+    # For each column we train a model
+    # 200 estimators for accuracy, random state 42 for reproducability, and n_jobs -1 so that it runs before the universe ends
     model = RandomForestRegressor(n_estimators=200, random_state=42, n_jobs=-1)
     model.fit(x_train, y_train[y])
 
-    models[y] = model
-
     y_pred = model.predict(x_validation)
 
+    # Measure its success
     rsq = r2_score(y_validation[y], y_pred)
     mse = mean_squared_error(y_validation[y], y_pred)
 
+    # Record in dataframe
     results.append({"y_column": y, "R2": rsq, "MSE": mse})
 
+# Sort by R^2 and take the top 70 performers
 results = pd.DataFrame(results).sort_values(by="R2", ascending=False).head(70)
 
+# We only care about that ones that made it through, so redefine y_cols
 y_cols = results['y_column']
 
 ## Fine Tuning
@@ -57,19 +62,24 @@ fine_tuned_results = []
 parameters = {}
 
 for y in tqdm(y_cols, desc="Fine Tuning Models", ncols=90):
+    # For each column, we tune the given parameters
     best_rsq = -float('inf')
     best_mse = 0
     best_params = None
 
+    # Try every parameter combination
     for params in ParameterGrid(param_grid):
+        # Use the same random state and CPU cores
         model = RandomForestRegressor(**params, random_state=42, n_jobs=-1)
         model.fit(x_train, y_train[y])
 
         y_pred = model.predict(x_validation)
 
+        # Measure new success
         rsq = r2_score(y_validation[y], y_pred)
         mse = mean_squared_error(y_validation[y], y_pred)
 
+        # Optimise for R^2
         if rsq > best_rsq:
             best_rsq = rsq
             best_params = params
@@ -78,7 +88,9 @@ for y in tqdm(y_cols, desc="Fine Tuning Models", ncols=90):
     fine_tuned_results.append({'y_column': y, 'R2': best_rsq, 'MSE': best_mse})
     parameters[y] = best_params
 
+# Take the top 16
 fine_tuned_results = pd.DataFrame(fine_tuned_results).sort_values(by="R2", ascending=False).head(16)
+fine_tuned_results.index = range(len(fine_tuned_results.index))
 
 y_cols = fine_tuned_results['y_column']
 
@@ -86,25 +98,31 @@ y_cols = fine_tuned_results['y_column']
 
 all_profits = {}
 
+# If the model makes sensible predictions on validation data, we allow it through to the test phase
 for i, y in enumerate(y_cols):
     params = parameters[y]
 
     model = RandomForestRegressor(**params, random_state=42, n_jobs=-1)
     model.fit(x_train, y_train[y])
 
+    # Store the model so we don't have to train them again
     models[y] = model
 
+    # Average size of y data, so we can scale for volatility
     size = np.mean(np.abs(y_train[y]))
     y_pred = model.predict(x_validation)
 
     positions = -5 * y_pred / size
 
+    # Determine profit
     profit = -1 * y_validation[y] * 100 * positions
     profit.fillna(0)
 
+    # If it's not negative and it was right most of the time, we allow it through 
     if not (sum(profit) < 0 and np.mean(profit > 0) < 0.6):
         all_profits[y] = profit
 
+# We test on everything that made it through
 all_profits = pd.DataFrame.from_dict(all_profits)
 all_profits = all_profits[all_profits.sum().sort_values(ascending=False).index]
 
@@ -124,6 +142,7 @@ y_test.set_index("Date", inplace=True)
 
 # ------------
 
+# UNUSED BUT FUNCTIONING: Predicted vs Actual graphs
 # grid_size = 4
 
 # fig, axes = plt.subplots(nrows = grid_size, ncols = grid_size)
@@ -135,6 +154,8 @@ y_test.set_index("Date", inplace=True)
 #     y_pred = model.predict(x_test)
 
 #     axes[i].plot(y_pred, y_test[y])
+    
+#     # Line of equality
 #     axes[i].plot(y_test[y], y_test[y])
 
 # fig.subplots_adjust(hspace=1, wspace=0.8)
@@ -143,18 +164,22 @@ y_test.set_index("Date", inplace=True)
 all_profits = {}
 
 for i, y in enumerate(y_cols):
+    # Recall the best model from fine tuning phase
     model = models[y]
 
+    # Again scale for volatility
     size = np.mean(np.abs(y_train[y]))
     y_pred = model.predict(x_test)
 
     positions = -5 * y_pred / size
 
+    # Determine profit
     profit = -1 * y_test[y] * 100 * positions
     profit.fillna(0)
 
     all_profits[y] = profit
 
+# Sort by profit
 all_profits = pd.DataFrame.from_dict(all_profits)
 all_profits = all_profits[all_profits.sum().sort_values(ascending=False).index]
 
@@ -174,23 +199,28 @@ for i, y in enumerate(y_cols):
 
     dates = x_test.index
 
+    # Bar chart of profit per month
     bars = axes[i].bar(dates, profit, width=25)
     axes[i].set_ylabel("Profit per month ($)")
 
+    # On a twin axis with a cumulative profit line chart
     ax2 = axes[i].twinx()
     lines = ax2.plot(dates, np.cumsum(profit), marker='.', alpha=0.7, color='red')
     ax2.set_ylabel("Cumulative profit ($)")
 
+    # Line at y = 0
     axes[i].axhline(0, color='red', linestyle='--', linewidth=0.8)
     axes[i].set_title(f'{y}')
     axes[i].tick_params(axis='x', rotation=45)
 
+    # We scale the axes of each graph so that their zero points are aligned
     ax1_ylims = axes[i].get_ylim()           
     ax1_yratio = ax1_ylims[0] / ax1_ylims[1]  
 
     ax2_ylims = ax2.get_ylim()           
     ax2_yratio = ax2_ylims[0] / ax2_ylims[1]
 
+    # Add some room at the top too
     pad = 1.15
 
     if ax1_yratio < ax2_yratio: 
@@ -198,5 +228,6 @@ for i, y in enumerate(y_cols):
     else:
         axes[i].set_ylim(bottom = ax1_ylims[1]*ax2_yratio)
 
+# Adjust subplot spacing
 fig.subplots_adjust(hspace=1, wspace=0.8)
 plt.show()
