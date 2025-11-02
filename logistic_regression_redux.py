@@ -2,7 +2,7 @@ import pandas as pd
 import datetime as dt
 import numpy as np
 import os
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 from sklearn.linear_model import LogisticRegression
 import matplotlib.pyplot as plt
 
@@ -107,6 +107,11 @@ for i, y in enumerate(y_cols):
     profit = -1 * y_validation[y] * 100 * positions
     profit.fillna(0)
 
+    acc = accuracy_score(y_validation_bool[y], y_pred)
+    f1 = f1_score(y_validation_bool[y], y_pred)
+    total_profit = profit.sum()
+    print(f"Validation | {y}: Accuracy={acc:.3f}, F1={f1:.3f}, Profit={total_profit:.2f}")
+
     if not (sum(profit) < 0 and np.mean(profit > 0) < 0.6):
         all_profits[y] = profit
 
@@ -127,6 +132,13 @@ y_test = pd.read_csv("test_y_data.csv")
 y_test["Date"] = pd.to_datetime(y_test["Date"])
 y_test.set_index("Date", inplace=True)
 
+# Create binary test labels (same as training and validation)
+y_test_bool = pd.DataFrame()
+for y in y_cols:
+    c3 = (y_test[y] > 0) * 1
+    y_test_bool = y_test_bool.assign(**{y: c3})
+
+
 # ------------
 
 all_profits = {}
@@ -141,6 +153,11 @@ for i, y in enumerate(y_cols):
 
     profit = -1 * y_test[y] * 100 * positions
     profit.fillna(0)
+
+    acc = accuracy_score(y_test_bool[y], y_pred)
+    f1 = f1_score(y_test_bool[y], y_pred)
+    total_profit = profit.sum()
+    print(f"Test | {y}: Accuracy={acc:.3f}, F1={f1:.3f}, Profit={total_profit:.2f}")
 
     all_profits[y] = profit
 
