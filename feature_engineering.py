@@ -50,11 +50,14 @@ for spread in spreads:
     spread_name = f"{spread[0]}_{spread[1]}_spread"
     yield_curve_data[spread_name] = yield_curve_data[spread[1]]- yield_curve_data[spread[0]]
 
+changes = pd.DataFrame()
+changes = changes.assign(Date = yield_curve_data["Date"])
+
 for column in yield_curve_data.columns: 
     if column != "Date":
         for window in look_fwd_windows: 
             column_name = f"{column}_{window}d_change"
-            yield_curve_data = yield_curve_data.assign(**{column_name: yield_curve_data[column].shift(window) - yield_curve_data[column]})
+            changes = changes.assign(**{column_name: yield_curve_data[column].shift(window) - yield_curve_data[column]})
 
 # output_path = os.path.join(os.getcwd(), "Cleaned Data")
 
@@ -62,12 +65,12 @@ for column in yield_curve_data.columns:
 
 data_full["Date"] = pd.to_datetime(data_full["Date"])
 data_full.set_index("Date", inplace=True)
-yield_curve_data["Date"] = pd.to_datetime(yield_curve_data["Date"])
-yield_curve_data.set_index("Date", inplace=True)
+changes["Date"] = pd.to_datetime(changes["Date"])
+changes.set_index("Date", inplace=True)
 
 all_dates = pd.date_range(start = "2013-01-01", end = "2024-12-31")
 
-filled_yield_data = yield_curve_data.reindex(all_dates, method='ffill')
+filled_yield_data = changes.reindex(all_dates, method='ffill')
 filled_yield_data = filled_yield_data.assign(Date = filled_yield_data.index)
 filled_yield_data.index = range(len(filled_yield_data.index))
 

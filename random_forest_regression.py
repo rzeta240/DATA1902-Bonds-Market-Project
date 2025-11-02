@@ -29,7 +29,7 @@ def load_data():
     y_val.index = pd.to_datetime(y_val.index)
 
     # Store target column names (each spread is a target)
-    y_cols = y_train.columns[11:]
+    y_cols = y_train.columns
 
 # run feature engineering
 try:
