@@ -185,6 +185,52 @@ all_profits = all_profits[all_profits.sum().sort_values(ascending=False).index]
 
 y_cols = all_profits.columns
 
+# creating a table
+rf_results = []
+
+for i, y in enumerate(y_cols):
+    model = models[y]
+    
+    # Predictions
+    y_pred = model.predict(x_test)
+    y_true = y_test[y]
+    
+    # Align non-NA test values
+    mask = ~y_true.isna()
+    y_true = y_true[mask]
+    y_pred = pd.Series(y_pred, index=y_test.index)[mask]
+    
+    # Metrics
+    test_r2 = r2_score(y_true, y_pred)
+    test_mse = mean_squared_error(y_true, y_pred)
+    
+    # Trading P&L
+    size = np.mean(np.abs(y_train[y]))
+    positions = -5 * y_pred / size
+    profit = -1 * y_true * 100 * positions
+    profit = profit.fillna(0)
+    cumulative_profit = profit.sum()
+    
+    # Hit rate (direction accuracy)
+    hit_rate = np.mean((y_pred > 0) == (y_true > 0))
+    
+    rf_results.append({
+        "Spread": y,
+        "Val_R2": fine_tuned_results.loc[fine_tuned_results["y_column"] == y, "R2"].values[0],
+        "Test_R2": test_r2,
+        "Val_MSE": fine_tuned_results.loc[fine_tuned_results["y_column"] == y, "MSE"].values[0],
+        "Test_MSE": test_mse,
+        "Hit_Rate": hit_rate,
+        "Total_Profit_$": cumulative_profit
+    })
+
+rf_results = pd.DataFrame(rf_results)
+print("\nFinal Random Forest Table:\n")
+print(rf_results.to_string(index=False))
+
+# Save to CSV for LaTeX
+rf_results.to_csv("rf_results_table.csv", index=False)
+
 ## Plotting results
 
 print(all_profits.sum())
