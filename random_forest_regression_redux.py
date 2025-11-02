@@ -1,73 +1,84 @@
-import pandas as pd 
-import datetime as dt
+import pandas as pd
 import numpy as np
-import os
-from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.linear_model import Ridge
+import os, time
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import ParameterGrid
+from sklearn.metrics import r2_score, mean_squared_error
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-x_train = pd.read_csv("training_x_data.csv")
-x_train["Date"] = pd.to_datetime(x_train["Date"])
-x_train.set_index("Date", inplace=True)
-x_validation = pd.read_csv("validation_x_data.csv")
-x_validation["Date"] = pd.to_datetime(x_validation["Date"])
-x_validation.set_index("Date", inplace=True)
+x_train = pd.read_csv("training_x_data.csv").set_index("Date")
+x_train.index = pd.to_datetime(x_train.index)
 
-y_train = pd.read_csv("training_y_data.csv")
-y_train["Date"] = pd.to_datetime(y_train["Date"])
-y_train.set_index("Date", inplace = True)
-y_validation = pd.read_csv("validation_y_data.csv")
-y_validation["Date"] = pd.to_datetime(y_validation["Date"])
-y_validation.set_index("Date", inplace=True)
+x_validation = pd.read_csv("validation_x_data.csv").set_index("Date")
+x_validation.index = pd.to_datetime(x_validation.index)
+
+y_train = pd.read_csv("training_y_data.csv").set_index("Date")
+y_train.index = pd.to_datetime(y_train.index)
+
+y_validation = pd.read_csv("validation_y_data.csv").set_index("Date")
+y_validation.index = pd.to_datetime(y_validation.index)
 
 y_cols = y_train.columns
 
-## Initial training
-
-alp = float(10)
+## Initial Training
 
 results = []
+models = {}
 
-for y in y_cols:
-    model = Ridge(alp)
+for y in tqdm(y_cols, desc="Training RF Models", ncols=90):
+    model = RandomForestRegressor(n_estimators=200, random_state=42, n_jobs=-1)
     model.fit(x_train, y_train[y])
 
+    models[y] = model
+
     y_pred = model.predict(x_validation)
-    
-    mse = mean_squared_error(y_validation[y], y_pred)
+
     rsq = r2_score(y_validation[y], y_pred)
+    mse = mean_squared_error(y_validation[y], y_pred)
 
-    results.append({'y_column': y, 'MSE': mse, 'R_squared': rsq})
+    results.append({"y_column": y, "R2": rsq, "MSE": mse})
 
-results = pd.DataFrame(results).sort_values(by="R_squared", ascending=False).head(70)
+results = pd.DataFrame(results).sort_values(by="R2", ascending=False).head(70)
 
 y_cols = results['y_column']
 
 ## Fine Tuning
 
+param_grid = {
+    'n_estimators': [100, 200],
+    'max_depth': [None, 10, 20],
+    'min_samples_split': [2, 5],
+    'min_samples_leaf': [1, 2],
+    'bootstrap': [True, False]
+}
+
 fine_tuned_results = []
+parameters = {}
 
-for y in y_cols:
+for y in tqdm(y_cols, desc="Fine Tuning Models", ncols=90):
     best_rsq = -float('inf')
-    best_alpha = 0
+    best_mse = 0
+    best_params = None
 
-    for alpha in np.logspace(-4, 5, 100):
-        model = Ridge(alpha)
+    for params in ParameterGrid(param_grid):
+        model = RandomForestRegressor(**params, random_state=42, n_jobs=-1)
         model.fit(x_train, y_train[y])
 
         y_pred = model.predict(x_validation)
 
-        mse = mean_squared_error(y_validation[y], y_pred)
         rsq = r2_score(y_validation[y], y_pred)
+        mse = mean_squared_error(y_validation[y], y_pred)
 
         if rsq > best_rsq:
             best_rsq = rsq
-            best_alpha = alpha
-    
-    fine_tuned_results.append({'y_column': y, 'Best_Alpha': best_alpha, 'R_squared': best_rsq})
+            best_params = params
+            best_mse = mse
 
-fine_tuned_results = pd.DataFrame(fine_tuned_results).sort_values(by='R_squared', ascending=False).head(16)
-fine_tuned_results.index = range(len(fine_tuned_results.index))
+    fine_tuned_results.append({'y_column': y, 'R2': best_rsq, 'MSE': best_mse})
+    parameters[y] = best_params
+
+fine_tuned_results = pd.DataFrame(fine_tuned_results).sort_values(by="R2", ascending=False).head(16)
 
 y_cols = fine_tuned_results['y_column']
 
@@ -76,8 +87,12 @@ y_cols = fine_tuned_results['y_column']
 all_profits = {}
 
 for i, y in enumerate(y_cols):
-    model = Ridge(fine_tuned_results.loc[i, 'Best_Alpha'])
+    params = parameters[y]
+
+    model = RandomForestRegressor(**params, random_state=42, n_jobs=-1)
     model.fit(x_train, y_train[y])
+
+    models[y] = model
 
     size = np.mean(np.abs(y_train[y]))
     y_pred = model.predict(x_validation)
@@ -109,11 +124,26 @@ y_test.set_index("Date", inplace=True)
 
 # ------------
 
+# grid_size = 4
+
+# fig, axes = plt.subplots(nrows = grid_size, ncols = grid_size)
+# axes = axes.flatten()
+
+# for i, y in enumerate(y_cols):
+#     model = models[y]
+
+#     y_pred = model.predict(x_test)
+
+#     axes[i].plot(y_pred, y_test[y])
+#     axes[i].plot(y_test[y], y_test[y])
+
+# fig.subplots_adjust(hspace=1, wspace=0.8)
+# plt.show()
+
 all_profits = {}
 
 for i, y in enumerate(y_cols):
-    model = Ridge(fine_tuned_results.loc[i, 'Best_Alpha'])
-    model.fit(x_train, y_train[y])
+    model = models[y]
 
     size = np.mean(np.abs(y_train[y]))
     y_pred = model.predict(x_test)

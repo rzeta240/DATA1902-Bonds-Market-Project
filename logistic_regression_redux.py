@@ -200,7 +200,7 @@ for i, y in enumerate(y_cols):
     if ax1_yratio < ax2_yratio: 
         ax2.set_ylim(bottom = ax2_ylims[1]*ax1_yratio, top=ax2_ylims[1]*pad)
     else:
-        axes[i].set_ylim(bottom = ax1_ylims[1]*ax2_yratio, top=ax1_ylims[1]*pad)
+        axes[i].set_ylim(bottom = ax1_ylims[1]*ax2_yratio)
 
 fig.subplots_adjust(hspace=1, wspace=0.8)
 plt.show()
