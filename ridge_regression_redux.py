@@ -101,6 +101,12 @@ for i, y in enumerate(y_cols):
     profit = -1 * y_validation[y] * 100 * positions
     profit.fillna(0)
 
+    directional_acc = np.mean(np.sign(y_pred) == np.sign(y_validation[y]))
+    mse = mean_squared_error(y_validation[y], y_pred)
+    rsq = r2_score(y_validation[y], y_pred)
+
+    print(f"Validation | {y}: MSE={mse:.3f}, R²={rsq:.3f}, Directional Accuracy={directional_acc:.3f}, Profit={profit.sum():.2f}")
+
     # If it's not negative and it was right most of the time, we allow it through 
     if not (sum(profit) < 0 and np.mean(profit > 0) < 0.6):
         all_profits[y] = profit
@@ -142,6 +148,22 @@ for i, y in enumerate(y_cols):
     profit = -1 * y_test[y] * 100 * positions
     profit.fillna(0)
 
+    # Mask NaNs in the test target
+    mask = ~y_test[y].isna()
+    y_true_clean = y_test[y][mask]
+    y_pred_clean = y_pred[mask]
+
+    positions = -5 * y_pred_clean / size
+    profit = -1 * y_true_clean * 100 * positions
+    profit.fillna(0, inplace=True)
+
+    # Directional accuracy (binary: up/down)
+    dir_acc = np.mean((y_pred_clean > 0) == (y_true_clean > 0))
+
+    print(f"Test | {y}: MSE={mean_squared_error(y_true_clean, y_pred_clean):.3f}, "
+          f"R²={r2_score(y_true_clean, y_pred_clean):.3f}, "
+          f"Directional Accuracy={dir_acc:.3f}, Profit={profit.sum():.2f}")
+
     all_profits[y] = profit
 
 # Sort by profit
@@ -162,7 +184,7 @@ axes = axes.flatten()
 for i, y in enumerate(y_cols):
     profit = all_profits[y]
 
-    dates = x_test.index
+    dates = profit.index  # align dates to profit after NaNs are removed
 
     # Bar chart of profit per month
     bars = axes[i].bar(dates, profit, width=25)
