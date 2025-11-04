@@ -78,6 +78,10 @@ filled_yield_data.index = range(len(filled_yield_data.index))
 filled_yield_data.insert(0, 'Date', filled_yield_data.pop('Date'))
 
 # Merge the two datasets, discarding y data on dates where we don't have x data
+
+filled_yield_data["Date"] = pd.to_datetime(filled_yield_data["Date"])
+data_full["Date"] = pd.to_datetime(data_full["Date"])
+
 all_data = pd.merge(data_full, filled_yield_data, how = "left", on = "Date")
 
 # Train / Validation / Test split
