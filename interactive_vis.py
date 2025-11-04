@@ -1,7 +1,7 @@
 import pandas as pd 
 import numpy as np
 from bokeh.plotting import figure, show
-from bokeh.models import Select, CustomJS, ColumnDataSource, Paragraph
+from bokeh.models import Select, CustomJS, ColumnDataSource, Paragraph, HoverTool
 from bokeh.layouts import layout,column, row
 from bokeh.server.server import Server
 from bokeh.io import curdoc
@@ -18,13 +18,40 @@ def modify_doc(doc):
     source = ColumnDataSource(data=dict(y_true=y_true, y_pred=y_pred))
     line_source = ColumnDataSource(data=dict(x=[max(min(y_true), min(y_pred)), min(max(y_true), max(y_pred))], y=[max(min(y_true), min(y_pred)), min(max(y_true), max(y_pred))]))
     profit_source = ColumnDataSource(data=dict(x=x, profit=profit, cum_profit=cum_profit))
-    p = figure(title="Predicted vs Actuals (Look Forward Window: 150)")
-    p.scatter('y_pred', 'y_true', source=source, color="#043565")
-    p.line('x', 'y', source=line_source, line_color="red", line_dash="dashed", line_width=2)
+    p = figure(title="Predicted vs Actuals (Look Forward Window: 150)", x_axis_label='Predicted Values', y_axis_label='Actual Values')
+    points = p.scatter('y_pred', 'y_true', source=source, color="#043565")
+    p.line('x', 'y', source=line_source, line_color="red", line_dash="dashed", line_width=2, legend_label="y=x")
 
-    p1 = figure(title="Profit of Trading Strategy", x_axis_label='Time', y_axis_label='Profit ($)')
-    p1.vbar(x='x', top='profit', source=profit_source, color= "#5158BB")
-    p1.line('x', 'cum_profit', source=profit_source, color = "#EB4B98", line_width=2)
+    p1 = figure(title="Profit of Trading Strategy", x_axis_label='Month since implementation', y_axis_label='Profit ($)')
+    bars = p1.vbar(x='x', top='profit', source=profit_source, color= "#5158BB", legend_label="Monthly Profit")
+    line = p1.line('x', 'cum_profit', source=profit_source, color = "#EB4B98", line_width=2, legend_label="Cumulative Profit")
+
+
+    # --- Hover tool for bars ---
+    hover_bars = HoverTool(
+        renderers=[bars],
+        tooltips=[
+            ("Profit", "$@profit{0.00}")
+        ]
+    )
+
+    # --- Hover tool for cumulative line ---
+    hover_line = HoverTool(
+        renderers=[line],
+        tooltips=[
+            ("Cumulative Profit", "$@cum_profit{0.00}")
+        ]
+    )
+    # --- Hover tool for scatter ---
+    hover_points = HoverTool(
+        renderers=[points],
+        tooltips=[
+            ("Predicted", "@y_pred{0.00}"),
+            ("Actual", "@y_true{0.00}")
+        ]
+    )
+    p.add_tools(hover_points)
+    p1.add_tools(hover_bars, hover_line)
 
     stats = Paragraph(text=f"""Model Performance Metrics:
     MSE: {mse:.4f} | R2: {r2:.4f} | Directional Accuracy: {dir_acc:.4f} | Total Profit: ${np.sum(profit):,.2f}
