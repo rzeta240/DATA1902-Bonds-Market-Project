@@ -199,23 +199,32 @@ p_yc.line(x="t", y="y", source=yc_src, line_width=2)
 p_yc.scatter(x="t", y="y", source=yc_src, size=6)
 p_yc.yaxis.formatter = NumeralTickFormatter(format="0.00")
 
-def norm(v): 
+def _to_float(x):
     try:
-        v = float(v)
+        return float(x)
     except:
         return math.nan
-    return v*100 if v <= 1.2 else v
 
-def update_curve(idx):
+def update_curve(idx: int):
     if yc_df.empty:
         return
     row = yc_df.iloc[idx]
-    ten, y = [], []
+
+    tenors, vals = [], []
     for t in DEFAULT_TENORS:
         if t in yc_df.columns:
-            ten.append(t)
-            y.append(norm(row[t]))
-    yc_src.data = dict(x=list(range(len(ten))), y=y, t=ten)
+            tenors.append(t)
+            vals.append(_to_float(row[t]))
+
+    # determine scale ONCE for the whole curve
+    arr = np.array(vals, dtype=float)
+    finite = arr[np.isfinite(arr)]
+    factor = 100.0 if (len(finite) and np.nanmax(finite) <= 1.2) else 1.0
+
+    y = [v * factor if np.isfinite(v) else math.nan for v in vals]
+
+    yc_src.data = dict(x=list(range(len(tenors))), y=y, t=tenors)
+
     d = row["Date"]
     p_yc.title.text = f"Yield Curve — {d.strftime('%Y-%m-%d') if pd.notnull(d) else '—'}"
 
