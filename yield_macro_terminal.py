@@ -89,6 +89,11 @@ prod, prod_dbg  = load_csv("labor_productivity_quarterly.csv")
 if not yc_df.empty and "Date" in yc_df.columns:
     yc_df = yc_df.sort_values("Date")
 
+    # Filter to 2012–2024 window
+    start_date = "2012-01-01"
+    end_date   = "2024-12-31"
+    yc_df = yc_df[(yc_df["Date"] >= start_date) & (yc_df["Date"] <= end_date)].reset_index(drop=True)
+
 debug_lines = [yc_dbg, un_dbg, gdp_dbg, house_dbg, prod_dbg]
 
 #CPI tile (hard-prefer CPIAUCSL_PC1)
@@ -237,14 +242,13 @@ date_slider.on_change("value", on_date_change)
 #Model Controls
 WINDOW_OPTIONS = ["3","5","7","10","15","20","25","30","40","50","60","70","80","90","100","150","200"]
 STRUCTURE_OPTIONS = [
-"1 Mo","3 Mo","6 Mo","1 Yr","2 Yr","3 Yr","5 Yr","10 Yr","20 Yr","30 Yr",
 "1 Mo_3 Mo_spread","1 Mo_6 Mo_spread","3 Mo_6 Mo_spread","3 Mo_3 Yr_spread",
 "3 Mo_1 Yr_spread","1 Yr_3 Yr_spread","1 Yr_5 Yr_spread","2 Yr_10 Yr_spread",
 "1 Yr_10 Yr_spread","3 Yr_5 Yr_spread","3 Yr_20 Yr_spread","3 Yr_30 Yr_spread",
 "5 Yr_10 Yr_spread","5 Yr_20 Yr_spread","5 Yr_30 Yr_spread","10 Yr_30 Yr_spread","10 Yr_20 Yr_spread"
 ]
 
-spread_sel = Select(title="Structure", value="6 Mo", options=STRUCTURE_OPTIONS)
+spread_sel = Select(title="Structure", value=STRUCTURE_OPTIONS[0], options=STRUCTURE_OPTIONS)
 win_sel    = Select(title="Lookahead (days)", value="150", options=WINDOW_OPTIONS)
 
 signal_div = Div(text="<b>Signal:</b> —")
