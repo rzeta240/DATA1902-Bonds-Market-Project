@@ -1,322 +1,362 @@
-# To run this file use the following command in the terminal
-#bokeh serve --show yield_macro_terminal.py
-import math
+import numpy as np, pandas as pd
 from pathlib import Path
-import numpy as np
-import pandas as pd
-
 from bokeh.io import curdoc
 from bokeh.layouts import row, column
-from bokeh.models import ColumnDataSource, Div, Select, Slider, NumeralTickFormatter
+from bokeh.models import ColumnDataSource, Div, Slider, NumeralTickFormatter
 from bokeh.plotting import figure
+from bokeh.server.server import Server
 
-#import from ridge regression
-from ridge_regression_redux import train_ridge_model
+def modify_doc(doc):
+    #load all data
 
+    #load yield curve data
+    df = pd.read_csv("Datasets/yield_curve_rates_daily.csv")
 
-BASE_DIR = Path(__file__).parent.resolve()
+    #load cpi data
+    cpi = pd.read_csv("Datasets/consumer_price_index_quarterly.csv")
+    cpi["Date"] = pd.to_datetime(cpi["Date"])
+    cpi = cpi.sort_values("Date").reset_index(drop=True)
 
-# File helpers
-def find_file(fname: str) -> Path | None:
-    """Try ./fname then ./Datasets/fname; return absolute Path or None."""
-    here = BASE_DIR / fname
-    ds = BASE_DIR / "Datasets" / fname
-    if here.exists(): return here.resolve()
-    if ds.exists():   return ds.resolve()
-    return None
+    #Load unemployment data
+    df_unemp = pd.read_csv("Datasets/unemployment_rate_monthly.csv")
+    df_unemp["Date"] = pd.to_datetime(df_unemp["Date"])
+    df_unemp = df_unemp.sort_values("Date").reset_index(drop=True)
 
-def load_csv(fname: str) -> tuple[pd.DataFrame, str]:
-    """
-    Load CSV from ./ or ./Datasets; return (df, debug_str).
-    df has Date parsed if present. On error, returns empty df with Date col.
-    """
-    p = find_file(fname)
-    if p is None:
-        msg = f"[WARN] Missing file: {fname} (looked in {BASE_DIR} and {BASE_DIR/'Datasets'})"
-        print(msg)
-        return pd.DataFrame({"Date": []}), msg
-    try:
-        df = pd.read_csv(p)
-        if "Date" in df.columns:
-            df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-        msg = f"[OK] Loaded {fname} from: {p}"
-        print(msg)
-        return df, msg
-    except Exception as e:
-        msg = f"[WARN] Failed to read {fname} at {p}: {e}"
-        print(msg)
-        return pd.DataFrame({"Date": []}), msg
+    # load gdp data
+    df_gdp = pd.read_csv("Datasets/GDP_quarterly.csv")
+    df_gdp["Date"] = pd.to_datetime(df_gdp["Date"])
 
-def pick_numeric_column(df: pd.DataFrame, prefer: list[str] | None = None) -> str | None:
-    """
-    Return a numeric column name. If 'prefer' provided, try those first (coerce).
-    """
-    if df.empty:
-        return None
-    # Try preferred first
-    if prefer:
-        for c in prefer:
-            if c in df.columns:
-                s = pd.to_numeric(df[c], errors="coerce")
-                if s.notna().any():
-                    df[c] = s
-                    return c
-    # Otherwise, the first numeric-ish after Date
-    for c in df.columns:
-        if c == "Date": 
-            continue
-        s = pd.to_numeric(df[c], errors="coerce")
-        if s.notna().any():
-            df[c] = s
-            return c
-    return None
+    # load housing data
+    df_house = pd.read_csv("Datasets/average_house_price_quarterly.csv")
+    df_house["Date"] = pd.to_datetime(df_house["Date"])
+    df_house = df_house.sort_values("Date").reset_index(drop=True)
 
-def last_two_values(series: pd.Series) -> tuple[float, float] | tuple[float, float]:
-    """Return (curr, prev) last 2 finite values; if not available, returns (nan, nan)."""
-    s = pd.to_numeric(series, errors="coerce").dropna()
-    if len(s) < 2:
-        return math.nan, math.nan
-    return float(s.iloc[-1]), float(s.iloc[-2])
+    # load Productivity (Nonfarm Business Labor Productivity)
+    df_prod = pd.read_csv("Datasets/labor_productivity_quarterly.csv")
+    #--------------------------------------------------------------------------
+
+    # Filter for Nonfarm Business productivity rows
+    df_prod = df_prod[
+        (df_prod["Sector"] == "Nonfarm business sector") &
+        (df_prod["Measure"] == "Labor productivity") &
+        (df_prod["Units"].isin([
+            "% Change same quarter 1 year ago",     # YoY
+            "% Change from previous quarter"        # QoQ
+        ]))
+    ].copy()
+
+    # Reshape from wide (columns per quarter) to long format (one row per quarter value)
+    df_prod = df_prod.melt(
+        id_vars=["Units"], 
+        var_name="Quarter", 
+        value_name="Value"
+    )
+
+    # Convert values to numeric (fix pivot errors)
+    df_prod["Value"] = pd.to_numeric(df_prod["Value"], errors="coerce")
+
+    #converting strings into year and quarters
+    df_prod["Year"] = df_prod["Quarter"].str.extract(r"(^\d{4})")
+    df_prod["Q"] = df_prod["Quarter"].str.extract(r"Q([1-4])")
+
+    # Drop rows where quarter extraction failed
+    df_prod = df_prod.dropna(subset=["Year", "Q"]).copy()
+
+    #converting into real date
+    df_prod["Date"] = pd.to_datetime(df_prod["Year"] + "-" + (df_prod["Q"].astype(int)*3 - 2).astype(str) + "-01")
+
+    #keeping only the ones that are after 2013
+    df_prod = df_prod[df_prod["Date"] >= "2013-01-01"].copy()
 
 
-# Load datasets
-yc_df, yc_dbg   = load_csv("yield_curve_rates_daily.csv")
-unemp, un_dbg   = load_csv("unemployment_rate_monthly.csv")
-gdp, gdp_dbg    = load_csv("GDP_quarterly.csv")
-house, house_dbg= load_csv("average_house_price_quarterly.csv")
-prod, prod_dbg  = load_csv("labor_productivity_quarterly.csv")
+    # Pivot to wide form: one row per Date, columns YoY & QoQ
+    df_prod_pivot = df_prod.pivot_table(
+        index="Date",
+        columns="Units",
+        values="Value"
+    ).reset_index()
 
-if not yc_df.empty and "Date" in yc_df.columns:
-    yc_df = yc_df.sort_values("Date")
+    df_prod_pivot.columns = ["Date", "QoQ", "YoY"]  # rename for clarity
 
-    # Filter to 2012–2024 window
-    start_date = "2012-01-01"
-    end_date   = "2024-12-31"
-    yc_df = yc_df[(yc_df["Date"] >= start_date) & (yc_df["Date"] <= end_date)].reset_index(drop=True)
+    # Sort by date
+    df_prod_pivot = df_prod_pivot.sort_values("Date").reset_index(drop=True)
 
-debug_lines = [yc_dbg, un_dbg, gdp_dbg, house_dbg, prod_dbg]
+    # Final clean productivity df
+    df_prod_final = df_prod_pivot.copy()
+    # coerce - If a value can’t be converted to a number, turn it into NaN instead of crashing.
+    df_prod_final["QoQ"] = pd.to_numeric(df_prod_final["QoQ"], errors="coerce")
+    df_prod_final["YoY"] = pd.to_numeric(df_prod_final["YoY"], errors="coerce")
 
-#CPI tile (hard-prefer CPIAUCSL_PC1)
-def cpi_tile():
-    p = find_file("consumer_price_index_quarterly.csv")
-    if p is None:
-        msg = f"[WARN] CPI file not found (looked in {BASE_DIR} and {BASE_DIR/'Datasets'})"
-        print(msg)
-        return Div(text=f"<b style='color:red;'>CPI Error:</b> file not found"), msg
+    #-------------------------------------------------------------------------------------------
 
-    try:
-        df = pd.read_csv(p)
-        # Parse date if present
-        if "Date" in df.columns:
-            df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    #create default layout for each tile
 
-        # Prefer CPIAUCSL_PC1; otherwise find first numeric col
-        col = pick_numeric_column(df, prefer=["CPIAUCSL_PC1"])
-        if col is None:
-            msg = f"[WARN] CPI: no numeric column found in {p.name}"
-            print(msg)
-            return Div(text=f"<b style='color:red;'>CPI Error:</b> no numeric column"), msg
+    #layout for cpi tile
+    cpi_tile = Div(text="""
+    <div style='width:150px; padding:10px; border:1px solid #ccc; border-radius:8px;'>CPI</div>""")
 
-        curr, prev = last_two_values(df[col])
-        if not (np.isfinite(curr) and np.isfinite(prev)):
-            msg = f"[WARN] CPI: insufficient numeric values in column '{col}'"
-            print(msg)
-            return Div(text=f"<b style='color:red;'>CPI Error:</b> insufficient data"), msg
-
-        delta = curr - prev
-        sign = "+" if delta >= 0 else ""
-
-        # format as percent (assumes values are already percent like 1.23)
-        def fmt(v): return f"{v:.2f}%"
-
-        tile_html = f"""
-        <div style="padding:14px;border:1px solid #ccc;border-radius:10px;
-                    width:200px;background:white;">
-          <div style="font-size:11px;color:#777;">CPI (latest)</div>
-          <div style="font-size:22px;font-weight:700;color:#111;">{fmt(curr)}</div>
-          <div style="font-size:12px;color:#555;">{sign}{fmt(delta)} vs prev</div>
-        </div>
-        """
-        msg = f"[OK] CPI from {p} using column '{col}' (curr={curr:.4f}, prev={prev:.4f})"
-        print(msg)
-        return Div(text=tile_html), msg
-
-    except Exception as e:
-        msg = f"[WARN] CPI read error at {p}: {e}"
-        print(msg)
-        return Div(text=f"<b style='color:red;'>CPI Error:</b> {e}"), msg
-
-cpi_div, cpi_dbg = cpi_tile()
-debug_lines.append(cpi_dbg)
-
-# Productivity tile
-def prod_tile_values(df: pd.DataFrame) -> tuple[float, float, str]:
-    col = pick_numeric_column(df)
-    if col is None:
-        return math.nan, math.nan, "(none)"
-    curr, prev = last_two_values(df[col])
-    return curr, (curr - prev), col
-
-prod_v, prod_d, prod_col = prod_tile_values(prod)
-
-# Shared tile helpers
-def fmt_pct(x):   return "—" if not np.isfinite(x) else f"{x:.1f}%"
-def fmt_money(x): return "—" if not np.isfinite(x) else f"${x:,.0f}"
-
-def last_and_delta(df):
-    if df.empty or "Date" not in df.columns or len(df) < 2:
-        return math.nan, math.nan, "(none)"
-    col = pick_numeric_column(df)
-    if col is None:
-        return math.nan, math.nan, "(none)"
-    curr, prev = last_two_values(df[col])
-    if not (np.isfinite(curr) and np.isfinite(prev)):
-        return math.nan, math.nan, col
-    return curr, curr - prev, col
-
-def tile(label, val, delta, fmt):
-    sign = "+" if np.isfinite(delta) and delta >= 0 else ""
-    return Div(text=f"""
-    <div style="padding:14px;border:1px solid #ccc;border-radius:10px;
-                width:200px;background:white;">
-      <div style="font-size:11px;color:#777;">{label}</div>
-      <div style="font-size:22px;font-weight:700;color:#111;">{fmt(val)}</div>
-      <div style="font-size:12px;color:#555;">{sign}{fmt(delta)} vs prev</div>
+    #layout for unemployment tile
+    unemp_tile = Div(text="""
+    <div style="padding:10px;border:1px solid #ccc;border-radius:8px;
+    width:180px;background:white;">
+    <div style="font-size:11px;color:#666;">Unemployment</div>
+    <div style="font-size:20px;font-weight:700;">--</div>
+    <div style="font-size:12px;color:#444;">YoY: --</div>
     </div>
     """)
 
-unemp_v, unemp_d, un_col = last_and_delta(unemp)
-gdp_v,   gdp_d,   gdp_col = last_and_delta(gdp)
-house_v, house_d, house_col = last_and_delta(house)
+    #layout for gdp tile
+    gdp_tile = Div(text="""
+    <div style="padding:10px;border:1px solid #ccc;border-radius:8px;
+    width:175px;background:white;">
+    <div style="font-size:11px;color:#666;">GDP (YoY)</div>
+    <div style="font-size:20px;font-weight:700;">--</div>
+    <div style="font-size:12px;color:#444;">YoY on --</div>
+    </div>
+    """)
 
-# Yield curve plot
-DEFAULT_TENORS = ["1 Mo","3 Mo","6 Mo","1 Yr","2 Yr","3 Yr","5 Yr","7 Yr","10 Yr","20 Yr","30 Yr"]
-yc_src = ColumnDataSource(dict(x=[], y=[], t=[]))
+    house_tile = Div(text="""
+    <div style="padding:10px;border:1px solid #ccc;border-radius:8px;
+    width:175px;background:white;">
+    <div style="font-size:11px;color:#666;">Avg House Price (USD)</div>
+    <div style="font-size:20px;font-weight:700;">--</div>
+    <div style="font-size:12px;color:#444;">YoY on --</div>
+    </div>
+    """)
 
-p_yc = figure(height=250, width=600, title="Yield Curve", toolbar_location=None,
-              x_range=DEFAULT_TENORS)
-p_yc.line(x="t", y="y", source=yc_src, line_width=2)
-p_yc.scatter(x="t", y="y", source=yc_src, size=6)
-p_yc.yaxis.formatter = NumeralTickFormatter(format="0.00")
+    prod_tile = Div(text="""
+    <div style="padding:10px;border:1px solid #ccc;border-radius:8px;
+    width:175px;background:white;">
+    <div style="font-size:11px;color:#666;">Productivity (Nonfarm)</div>
+    <div style="font-size:20px;font-weight:700;">--</div>
+    <div style="font-size:12px;color:#444;">YoY on --</div>
+    </div>
+    """)
+    #---------------------------------------------------------------------
 
-def _to_float(x):
-    try:
-        return float(x)
-    except:
-        return math.nan
+    #converts the date string into date type
+    df["Date"] = pd.to_datetime(df["Date"])
 
-def update_curve(idx: int):
-    if yc_df.empty:
-        return
-    row = yc_df.iloc[idx]
+    #create new index for each row
+    df = df.sort_values("Date").reset_index(drop=True)
 
-    tenors, vals = [], []
-    for t in DEFAULT_TENORS:
-        if t in yc_df.columns:
-            tenors.append(t)
-            vals.append(_to_float(row[t]))
+    #only have entries 2013 onwards
+    df = df[df["Date"] >= "2013-01-02"].reset_index(drop=True)
 
-    # determine scale ONCE for the whole curve
-    arr = np.array(vals, dtype=float)
-    finite = arr[np.isfinite(arr)]
-    factor = 100.0 if (len(finite) and np.nanmax(finite) <= 1.2) else 1.0
+    #yield curve time to maturity
+    maturity = ["1 Mo","3 Mo","6 Mo","1 Yr","2 Yr","3 Yr","5 Yr","7 Yr","10 Yr","20 Yr","30 Yr"]
 
-    y = [v * factor if np.isfinite(v) else math.nan for v in vals]
+    #data source for the plot
+    src = ColumnDataSource(data=dict(m=[], y=[]))
 
-    yc_src.data = dict(x=list(range(len(tenors))), y=y, t=tenors)
+    #yield curve figure
+    plot = figure(height=260, width=620, title="Yield Curve", toolbar_location=None, x_range=maturity)
+    plot.line("m", "y", source=src, line_width=2)
+    plot.scatter("m", "y", source=src, size=6)
+    #-------------------------------------------------------------------------------------------------
+    #slider
+    start_idx = df.index[df["Date"] == "2013-01-02"].tolist()[0] # set the start date to 02-01-2013
+    date_slider = Slider(start=0, end=len(df)-1, value=start_idx, step=1, title="Date (index)")
 
-    d = row["Date"]
-    p_yc.title.text = f"Yield Curve — {d.strftime('%Y-%m-%d') if pd.notnull(d) else '—'}"
+    #helper function to get the closest cpi date
+    def get_cpi_for_date(date):
+        # find nearest CPI row on or before the selected date
+        mask = cpi[cpi["Date"] <= date]
+        if len(mask) == 0:
+            return None
+        return float(mask["CPIAUCSL_PC1"].iloc[-1])
+    #--------------------------------------------------------------------------------------------------
+    #callback function
+    def on_slider_change(attr, old, new):
+        i = int(new) # new input as user changes the slider
+        row = df.iloc[i] # takes the input from the slider and finds the row in dataframe
 
-# Slider
-date_slider = Slider(
-    start=0, 
-    end=len(yc_df)-1,
-    value=len(yc_df)-1,
-    step=1,
-    title="Yield Curve Date (index)"
-)
+        values = [float(row[m]) for m in maturity]  # yields for each maturity
+        src.data = dict(m=maturity, y=values) # plot the list of maturities against the values
 
-# Date label under slider (real date text)
-date_label = Div(text="", styles={"font-size": "12px", "color": "#444"})
+        # update the title of the plot with the date
+        plot.title.text = f"Yield Curve — {row['Date'].strftime('%Y-%m-%d')}" 
 
-def on_date_change(attr, old, new):
-    idx = int(new)
-    update_curve(idx)
-    d = yc_df.iloc[idx]["Date"]
-    date_label.text = f"<b>Date:</b> {d.strftime('%Y-%m-%d')}"
-
-date_slider.on_change("value", on_date_change)
-
-#Model Controls
-WINDOW_OPTIONS = ["3","5","7","10","15","20","25","30","40","50","60","70","80","90","100","150","200"]
-STRUCTURE_OPTIONS = [
-"1 Mo_3 Mo_spread","1 Mo_6 Mo_spread","3 Mo_6 Mo_spread","3 Mo_3 Yr_spread",
-"3 Mo_1 Yr_spread","1 Yr_3 Yr_spread","1 Yr_5 Yr_spread","2 Yr_10 Yr_spread",
-"1 Yr_10 Yr_spread","3 Yr_5 Yr_spread","3 Yr_20 Yr_spread","3 Yr_30 Yr_spread",
-"5 Yr_10 Yr_spread","5 Yr_20 Yr_spread","5 Yr_30 Yr_spread","10 Yr_30 Yr_spread","10 Yr_20 Yr_spread"
-]
-
-spread_sel = Select(title="Structure", value=STRUCTURE_OPTIONS[0], options=STRUCTURE_OPTIONS)
-win_sel    = Select(title="Lookahead (days)", value="150", options=WINDOW_OPTIONS)
-
-signal_div = Div(text="<b>Signal:</b> —")
-stats_div  = Div(text="")
-
-def update_model():
-    try:
-        w = int(win_sel.value)
-        s = spread_sel.value
-        profit, mse, r2, acc, y_true, y_pred = train_ridge_model(w, s)
-        last = y_pred[-1] if len(y_pred) else float("nan")
-
-        if np.isfinite(last) and last > 0:
-            signal_div.text = "<b style='color:#2e7d32;'>Signal: LONG</b>"
-        elif np.isfinite(last) and last < 0:
-            signal_div.text = "<b style='color:#c62828;'>Signal: SHORT</b>"
+        # data for cpi tile------------------------------------------------------------------------------------
+        cpi_value = get_cpi_for_date(row["Date"])
+        # update cpi tile
+        if cpi_value is not None:
+            cpi_tile.text = f"""
+            <div style="padding:10px;border:1px solid #ccc;border-radius:8px;width:150px;background:white;">
+                <div style="font-size:11px;color:#666;">CPI (YoY)</div>
+                <div style="font-size:20px;font-weight:700;">{cpi_value:.2f}%</div>
+                <div style="font-size:12px;color:#444;">On {row['Date'].strftime('%Y-%m-%d')}</div>
+            </div>
+            """
         else:
-            signal_div.text = "<b>Signal:</b> —"
+            cpi_tile.text = "No CPI Data"
 
-        stats_div.text = f"R²: {r2:.3f} | MSE: {mse:.4f} | DirAcc: {acc*100:.1f}% | Profit: ${np.sum(profit):,.0f}"
-    except Exception as e:
-        stats_div.text = f"Model error: {e}"
+        # data for unemployment------------------------------------------------------------------------------------
+        # Filter unemployment data up to the selected slider date
+        match = df_unemp[df_unemp["Date"] <= row["Date"]]
 
-spread_sel.on_change("value", lambda a,o,n: update_model())
-win_sel.on_change("value", lambda a,o,n: update_model())
+        if not match.empty:
+            current_u = match.iloc[-1]["UNRATE"]
 
-#Layout
-header = Div(text=f"""
-<h2 style="margin:0;">Yield & Macro Strategy Terminal</h2>
-<div style="font-size:12px;color:#777;">Macro Dashboard · Yield Curve</div>
-""")
+            # Get YoY unemployment: this month vs same month last year
+            one_year_prior_mask = df_unemp[df_unemp["Date"] <= (row["Date"] - pd.DateOffset(years=1))]
+            if not one_year_prior_mask.empty:
+                # Value from 1 year earlier
+                prev_u = one_year_prior_mask.iloc[-1]["UNRATE"]
+                # YoY change = current minus last year's value
+                yoy_change = current_u - prev_u
+            else:
+                # No previous year data available, so YoY is not computable
+                yoy_change = np.nan
 
-tiles = row(
-    cpi_div,
-    tile("Unemployment",   unemp_v,  unemp_d,  lambda v: "—" if not np.isfinite(v) else f"{v:.2f}%"),
-    tile("GDP (bn)",       gdp_v,    gdp_d,    lambda v: "—" if not np.isfinite(v) else f"${v:,.0f}"),
-    tile("Productivity",   prod_v,   prod_d,   lambda v: "—" if not np.isfinite(v) else f"{v:.2f}%"),
-    tile("House Price",    house_v,  house_d,  lambda v: "—" if not np.isfinite(v) else f"${v:,.0f}"),
-)
+            # Format current unemployment value
+            unemp_val = f"{current_u:.2f}%"
+            
+            # Format YoY change or show dash if unavailable
+            if np.isnan(yoy_change):
+                unemp_yoy = "-"
+            else:
+                sign = "+" if yoy_change >= 0 else ""
+                unemp_yoy = f"{sign}{yoy_change:.2f} pp" # "pp" = percentage points
+        else:
+            # No unemployment data available up to that date
+            unemp_val = "-"
+            unemp_yoy = "-"
 
-controls = column(
-    Div(text="<b>Model Controls</b>"),
-    spread_sel,
-    win_sel,
-    Div(text="<b>Signal</b>"),
-    signal_div,
-    Div(text="<b>Stats</b>"),
-    stats_div,
-)
+        # update unemployment tile
+        unemp_tile.text = f"""
+        <div style="padding:10px;border:1px solid #ccc;border-radius:8px;width:175px;background:white;">
+        <div style="font-size:11px;color:#666;">Unemployment (current %)</div>
+        <div style="font-size:20px;font-weight:700;">{unemp_val}</div>
+        <div style="font-size:12px;color:#444;">{unemp_yoy} YoY on {row['Date'].strftime('%Y-%m-%d')}</div>
+        </div>
+        """
 
-layout = column(
-    header,
-    tiles,
-    row(p_yc, column(row(date_slider, date_label), controls)),
-    sizing_mode="stretch_width"
-)
+        # data for gdp tile------------------------------------------------------------------------------------
+        match_gdp = df_gdp[df_gdp["Date"] <= row["Date"]]
 
-update_curve(int(date_slider.value))
-update_model()
+        if not match_gdp.empty:
+            current_gdp = match_gdp.iloc[-1]["GDP"]
 
-curdoc().add_root(layout)
-curdoc().title = "Yield Dashboard"
+            # same quarter last year (4 quarters earlier)
+            prev_mask = df_gdp[df_gdp["Date"] <= (row["Date"] - pd.DateOffset(years=1))]
+            if not prev_mask.empty:
+                prev_gdp = prev_mask.iloc[-1]["GDP"]
+                yoy_gdp = ((current_gdp - prev_gdp) / prev_gdp) * 100
+            else:
+                yoy_gdp = np.nan
+
+            # Format GDP level in BILLIONS
+            gdp_val = f"${current_gdp:,.0f}B"
+
+            # Format YoY growth
+            if np.isnan(yoy_gdp):
+                gdp_yoy = "-"
+            else:
+                sign = "+" if yoy_gdp >= 0 else ""
+                gdp_yoy = f"{sign}{yoy_gdp:.2f}%"
+        else:
+            gdp_val = "-"
+            gdp_yoy = "-"
+        
+        #update gdp tile
+        gdp_tile.text = f"""
+        <div style="padding:10px;border:1px solid #ccc;border-radius:8px;width:175px;background:white;">
+            <div style="font-size:11px;color:#666;">GDP (current, $ billions)</div>
+            <div style="font-size:20px;font-weight:700;">{gdp_val}</div>
+            <div style="font-size:12px;color:#444;">{gdp_yoy} YoY on {row['Date'].strftime('%Y-%m-%d')}</div>
+        </div>
+        """
+
+        # data for housing tile------------------------------------------------------------------------------------
+        match_house = df_house[df_house["Date"] <= row["Date"]]
+
+        if not match_house.empty:
+            current_house = match_house.iloc[-1]["ASPUS"]
+
+            # value 1 year prior
+            prev_mask = df_house[df_house["Date"] <= (row["Date"] - pd.DateOffset(years=1))]
+            if not prev_mask.empty:
+                prev_house = prev_mask.iloc[-1]["ASPUS"]
+                yoy_house = ((current_house - prev_house) / prev_house) * 100
+            else:
+                yoy_house = np.nan
+
+            # format dollars
+            house_val = f"${current_house:,.0f}"
+
+            # YoY formatting
+            if np.isnan(yoy_house):
+                house_yoy = "-"
+            else:
+                sign = "+" if yoy_house >= 0 else ""
+                house_yoy = f"{sign}{yoy_house:.2f}%"
+        else:
+            house_val = "-"
+            house_yoy = "-"
+
+        # update housing tile
+        house_tile.text = f"""
+        <div style="padding:10px;border:1px solid #ccc;border-radius:8px;width:175px;background:white;">
+        <div style="font-size:11px;color:#666;">Avg House Price (USD)</div>
+        <div style="font-size:20px;font-weight:700;">{house_val}</div>
+        <div style="font-size:12px;color:#444;">{house_yoy} YoY on {row['Date'].strftime('%Y-%m-%d')}</div>
+        </div>
+        """
+
+        #data for productivity------------------------------------------------------------------------------------
+        match_prod = df_prod_final[df_prod_final["Date"] <= row["Date"]]
+
+        if not match_prod.empty:
+            # latest YoY and QoQ values as of the slider date
+            current_yoy = match_prod.iloc[-1]["YoY"]
+            current_qoq = match_prod.iloc[-1]["QoQ"]
+
+            # Format YoY productivity
+            yoy_str = f"{current_yoy:.2f}%" if pd.notna(current_yoy) else "-"
+            # Determine sign (+/-) for QoQ display
+            qoq_sign = "+" if pd.notna(current_qoq) and current_qoq >= 0 else ""
+
+            # Format QoQ productivity
+            qoq_str = f"{qoq_sign}{current_qoq:.2f}%" if pd.notna(current_qoq) else "-"
+        else:
+            # If no productivity data yet for this date, show placeholders
+            yoy_str = "-"
+            qoq_str = "-"
+
+        #update productivity tile
+        prod_tile.text = f"""
+        <div style="padding:10px;border:1px solid #ccc;border-radius:8px;width:200px;background:white;">
+            <div style="font-size:11px;color:#666;">Labor Productivity (Nonfarm % YoY)</div>
+            <div style="font-size:20px;font-weight:700;">{yoy_str}</div>
+            <div style="font-size:11px;color:#555;">QoQ: {qoq_str} on {row['Date'].strftime('%Y-%m-%d')}</div>
+        </div>
+        """
+
+    #call the callback function
+    date_slider.on_change("value", on_slider_change)
+
+    # trigger initial plot
+    on_slider_change("value", None, date_slider.value)
+
+    #organise the layout
+    layout = column(
+        Div(text="<h2>Yield Curve Viewer</h2>"),
+        row(
+            cpi_tile,
+            unemp_tile,
+            gdp_tile,
+            house_tile,
+            prod_tile
+        ),
+        plot,
+        date_slider
+    )
+    doc.add_root(layout)
+
+# create and start the server
+server = Server({'/': modify_doc}, num_procs=1)
+server.start()
+print("Opening Bokeh application on http://localhost:5006/")
+server.io_loop.add_callback(server.show, "/")
+server.io_loop.start()
