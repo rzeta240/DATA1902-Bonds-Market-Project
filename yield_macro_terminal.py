@@ -360,3 +360,7 @@ server.start()
 print("Opening Bokeh application on http://localhost:5006/")
 server.io_loop.add_callback(server.show, "/")
 server.io_loop.start()
+
+#use the following commands to end one session of the server and start next
+#to see running server -  lsof -i :5006
+#to kill a running process - kill -9 PID_NUMBER
