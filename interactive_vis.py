@@ -18,14 +18,14 @@ def modify_doc(doc):
     source = ColumnDataSource(data=dict(y_true=y_true, y_pred=y_pred))
     line_source = ColumnDataSource(data=dict(x=[max(min(y_true), min(y_pred)), min(max(y_true), max(y_pred))], y=[max(min(y_true), min(y_pred)), min(max(y_true), max(y_pred))]))
     profit_source = ColumnDataSource(data=dict(x=x, profit=profit, cum_profit=cum_profit))
-    p = figure(title="Predicted vs Actuals (Look Forward Window: 150)", x_axis_label='Predicted Values', y_axis_label='Actual Values')
+    p = figure(width=550, height=400,title="Predicted vs Actuals (Look Forward Window: 150)", x_axis_label='Predicted Values', y_axis_label='Actual Values')
     points = p.scatter('y_pred', 'y_true', source=source, color="#043565")
     p.line('x', 'y', source=line_source, line_color="red", line_dash="dashed", line_width=2, legend_label="y=x")
-
-    p1 = figure(title="Profit of Trading Strategy", x_axis_label='Month since implementation', y_axis_label='Profit ($)')
+    p.legend.label_text_font_size = "8pt"
+    p1 = figure(width=550, height=400, title="Profit of Trading Strategy", x_axis_label='Month since implementation', y_axis_label='Profit ($)')
     bars = p1.vbar(x='x', top='profit', source=profit_source, color= "#5158BB", legend_label="Monthly Profit")
     line = p1.line('x', 'cum_profit', source=profit_source, color = "#EB4B98", line_width=2, legend_label="Cumulative Profit")
-
+    p1.legend.label_text_font_size = "8pt"
 
     # --- Hover tool for bars ---
     hover_bars = HoverTool(
