@@ -3,10 +3,11 @@ import plotly.graph_objects as go
 
 from Scripts.dataset_reader import get_yield_curve_rates, get_labor_productivity
 
+# Load yield curve and labor datasets
 df_yield = get_yield_curve_rates()
 df_labor = get_labor_productivity()
 
-# Convert to timetime type and aggregate to quarterly 
+# Convert date column to datetime type and aggregate daily yields to quarterly averages 
 df_yield['Date'] = pd.to_datetime(df_yield['Date'])
 df_yield['year_quarter'] = df_yield['Date'].dt.to_period('Q')
 yield_quarterly = df_yield.groupby('year_quarter', as_index=False).mean(numeric_only=True)
@@ -23,12 +24,13 @@ df_merged = pd.merge(
     how='inner'  # keep only quarters present in both datasets
 )
 
-# Calculate change from previous quarter
+# Calculate quarter-over-quarter percentage change in bond yields
 bonds = ['1 Mo', '3 Mo', '6 Mo', '1 Yr', '2 Yr', '3 Yr', '5 Yr', '7 Yr', '10 Yr', '20 Yr', '30 Yr']
 
 for bond in bonds:
     df_merged[f'{bond}_pct_change'] = df_merged[bond].pct_change() * 100
 
+# Remove first row (no previous quarter) and reset index
 df_merged = df_merged.dropna().reset_index(drop=True)
 
 bond_percent = ['1 Mo_pct_change', '3 Mo_pct_change', '6 Mo_pct_change',
@@ -36,6 +38,7 @@ bond_percent = ['1 Mo_pct_change', '3 Mo_pct_change', '6 Mo_pct_change',
                  '5 Yr_pct_change', '7 Yr_pct_change', '10 Yr_pct_change',
                  '20 Yr_pct_change', '30 Yr_pct_change']
 
+# Identify unique metrics per sector
 all_metrics = sorted({
     col.split("sector ")[1]
     for col in df_labor.columns
@@ -59,6 +62,7 @@ for metric in metrics:
     for sector in sectors:
         corr_results[sector] = {}
         for bond in bond_percent:
+            # Compute Pearson correlation
             corr = df_merged[sector].corr(df_merged[bond])
             corr_results[sector][bond] = corr
 
@@ -70,14 +74,15 @@ for metric in metrics:
 
 fig = go.Figure()
 
+# Add heatmap for each metric
 for i, metric in enumerate(metrics):
     fig.add_trace(go.Heatmap(
         z=corr_data[metric].values,
         x=corr_data[metric].columns,
         y=corr_data[metric].index,
         colorscale='RdBu',
-        zmin=-0.6,
-        zmax=0.6,
+        zmin=-0.7,
+        zmax=0.7,
         zmid=0,
         colorbar=dict(title='Correlation (r)'),
         name=metric,
@@ -87,7 +92,7 @@ for i, metric in enumerate(metrics):
         visible=(i == 0)
     ))
 
-# Slider steps
+# Slider to switch between metrics
 steps = [
     dict(
         method="update",
@@ -106,7 +111,7 @@ fig.update_layout(
         x=0.5,
         xanchor='center'
     ),
-    # margin=dict(t=220), in case we want to make slider at top
+    margin=dict(b=100), # add buffer at bottom
     xaxis_title="Labor Sectors (% change from previous quarter)",
     yaxis_title="Bond Tenor (% change from previous quarter)",
     sliders=[dict(
@@ -114,15 +119,68 @@ fig.update_layout(
         currentvalue={"prefix": "Metric: ", 
                       "font": {"size": 16, "family": "Arial, sans-serif", "color": "black"} 
         },
-        pad={"t": 50},
-        y=-0.3,     
+        y=-0.6,     
         steps=steps,
         font={"color": "rgba(0,0,0,0)"}  # make static labels bottom of slider invisible
     )],
     width=1000,
-    height=680,
+    height=710,
     plot_bgcolor='white',
     paper_bgcolor='white',
+
+)
+
+# Annotation: slider information
+fig.add_annotation(
+    text="Use this slider to switch<br> between labor productivity metrics.",
+    xref="paper", yref="paper",
+    x=0.06, y=-0.65,
+    showarrow=True,
+    font=dict(size=12, color="black"),
+    align="center"
+)
+
+# Caption: heatmap purpose
+fig.add_annotation(
+    text="Explore relationships between quarterly changes in labor markets and the yield curve.",
+    xref="paper", yref="paper",
+    x=0.5, y=1.13,
+    showarrow=False,
+    font=dict(size=12, color="black"),
+    align="center"
+)
+
+# Annotation: correlation colour map
+fig.add_annotation(
+    text="Blue = positive correlation<br>Red = negative correlation.",
+    xref="paper", yref="paper",
+    x=1.05, 
+    y=0.97,   
+    showarrow=True,
+    align="left",
+    font=dict(size=12, color="black"),
+    bgcolor="white",
+    bordercolor="black",
+    borderwidth=1,
+    borderpad=4
+)
+
+# Annotation: correlation colour intensity
+fig.add_annotation(
+    text="Darker colours indicate stronger relationships.",
+    xref="paper", yref="paper",
+    x=1.05,
+    y=0.1,
+    showarrow=True,
+    ax=-100,
+    ay=170,
+    arrowcolor="darkred",
+    align="left",
+    font=dict(size=12, color="black"),
+    bgcolor="white",
+    bordercolor="black",
+    borderwidth=1,
+    borderpad=4
 )
 
 fig.show()
