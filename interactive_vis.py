@@ -5,7 +5,7 @@ from bokeh.models import Select, CustomJS, ColumnDataSource, Paragraph, HoverToo
 from bokeh.layouts import layout,column, row
 from bokeh.server.server import Server
 from bokeh.io import curdoc
-from ridge_regression_redux import train_ridge_model
+from models.ridge_regression_redux import train_ridge_model
 
 def modify_doc(doc):
     # Get data for placeholder model using training script
