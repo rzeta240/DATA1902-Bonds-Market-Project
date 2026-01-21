@@ -1,9 +1,9 @@
 # US Treasury Yield Curve Prediction from Macroeconomic Indicators
 
 ## Overview  
-This group coursework project investigates whether **current macroeconomic conditions** (inflation, unemployment, GDP, housing prices, and labor productivity) can be used to **predict future changes in the U.S. Treasury bond yield curve**.  
+This group coursework project investigates whether current macroeconomic conditions (inflation, unemployment, GDP, housing prices, and labor productivity) can be used to predict future changes in the U.S. Treasury bond yield curve.  
 
-Using historical government data (2013–2024), we engineered economic features and train **statistical and machine learning models** to forecast both the **direction and magnitude of yield curve movements**, with an emphasis on the widely traded **10Y–2Y yield spread**.
+Using historical government data (2013–2024), we engineered economic features and train **statistical and machine learning models** to forecast both the direction and magnitude of yield curve movements, with an emphasis on the widely traded 10Y–2Y yield spread.
 
 ---
 
