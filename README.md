@@ -99,6 +99,8 @@ The project includes several exploratory and analytical visuals:
 - **Matplotlib / Seaborn** — Visualisation  
 - **Git** — Version control  
 
+--- 
+
 - Time-series feature engineering  
 - Financial data modelling  
 - Macroeconomic analysis  
