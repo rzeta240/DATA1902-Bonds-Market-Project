@@ -56,14 +56,12 @@ We trained separate models for multiple yield structures and forecast horizons, 
 
 ## Evaluation Metrics  
 
-In addition to standard ML metrics, we introduced **finance-specific performance measures**:
-
-### Statistical Metrics  
+### Statistical metrics
 - R² — Variance explained  
 - SE — Prediction error magnitude  
 - Accuracy / F1 Score — Directional classification quality  
 
-### Trading Metrics  
+### Trading metrics
 - Directional Accuracy (Hit Rate) — Correct buy/sell signals  
 - Simulated Profit — Trading performance based on predicted yield direction and realized spread changes  
 
@@ -84,7 +82,7 @@ In addition to standard ML metrics, we introduced **finance-specific performance
 The project includes several exploratory and analytical visuals:
 
 - 3D Yield Surface — Term structure evolution over time  
-- Macroeconomic vs Yield Spread Comparisons**  
+- Macroeconomic vs Yield Spread Comparisons  
   - CPI vs 10Y–2Y spread  
   - Housing prices vs yield slope  
   - Unemployment vs yield inversion  
