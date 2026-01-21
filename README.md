@@ -79,7 +79,7 @@ In addition to standard ML metrics, we introduced **finance-specific performance
 
 ---
 
-## Visualizations  
+## Visualisations  
 
 The project includes several exploratory and analytical visuals:
 
@@ -92,21 +92,18 @@ The project includes several exploratory and analytical visuals:
 
 ---
 
-## Skills used
+## Tools/skills used
 - **Python**  
 - **pandas, NumPy** — Data processing  
 - **scikit-learn** — Modeling & evaluation  
-- **Matplotlib / Seaborn** — Visualization  
+- **Matplotlib / Seaborn** — Visualisation  
 - **Git** — Version control  
 
----
-
-## Skills Demonstrated  
 - Time-series feature engineering  
 - Financial data modelling  
 - Macroeconomic analysis  
 - Machine learning model selection and tuning  
 - Quantitative trading evaluation  
 - Data cleaning and transformation at scale  
-- Visualization for economic interpretation  
+- Visualisation for economic interpretation  
 
